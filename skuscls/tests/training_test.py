@@ -1,6 +1,7 @@
 import unittest
 from skuscls import training
 
+
 class TestTraining(unittest.TestCase):
     def setUp(self):
         images = ['523675_ZKD96_9433_002_100_0000_Light.png', '526908_0PLOT_1000_002_100_0000_Light.png', '519335_0LDD0_6072_001_100_0000_Light.png', '487005_0C11E_4970_010_089_0000_Light.png']
