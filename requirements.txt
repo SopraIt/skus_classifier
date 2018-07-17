@@ -36,6 +36,7 @@ Pillow==5.2.0
 prometheus-client==0.3.0
 prompt-toolkit==1.0.15
 ptyprocess==0.6.0
+pyflakes==2.0.0
 Pygments==2.2.0
 pyparsing==2.2.0
 python-dateutil==2.7.3
