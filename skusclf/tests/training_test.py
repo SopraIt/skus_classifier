@@ -1,6 +1,5 @@
 import unittest
-import stubs
-from skusclf import training
+from skusclf import stubs, training
 
 
 class TestTraining(unittest.TestCase):
@@ -8,8 +7,8 @@ class TestTraining(unittest.TestCase):
         norm = training.Normalizer(stubs.IMAGES[-1])
         self.assertEqual(norm.img.__class__.__name__, 'PngImageFile')
         self.assertEqual(norm.w, 250)
-        self.assertEqual(norm.h, 130)
-        self.assertEqual(norm._offset(), (0, 60))
+        self.assertEqual(norm.h, 250)
+        self.assertEqual(norm._offset(), (0, 0))
         self.assertEqual(norm._canvas().size, (250, 250))
 
     def test_set_descr_keys(self):

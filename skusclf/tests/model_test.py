@@ -1,11 +1,10 @@
 import unittest
-import stubs
-from skusclf import model, training
+from skusclf import model, stubs, training
 
 
 class TestModel(unittest.TestCase):
     def setUp(self):
-        _set = training.Loader(f'{stubs.PATH}/squared').set()
+        _set = training.Loader(f'{stubs.PATH}').set()
         self.data, self.labels = [_set[k] for k in ('data', 'labels')]
     
     def test_training_test_sets(self):
@@ -17,10 +16,8 @@ class TestModel(unittest.TestCase):
 
     def test_prediction(self):
         clf = model.Classifier(data=self.data, labels=self.labels)
-        flat_data = clf._flat(self.data)
-        img = flat_data[0]
-        res = clf.predict(img)
-        self.assertEqual(res, [self.labels[0]])
+        res = clf.predict(self.data[2])
+        self.assertEqual(res, [self.labels[2]])
 
 
 if __name__ == '__main__':

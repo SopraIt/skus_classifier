@@ -15,6 +15,7 @@ class Classifier:
     
     def predict(self, img, test=False):
         self._fit(test)
+        img = self._flat_img(img)
         return self.clf.predict([img])
 
     def _fit(self, test):
@@ -25,10 +26,16 @@ class Classifier:
         
     def _flatten(self, X, y):
         return self._flat(X), self._flat(y)
+
+    def _flat_img(self, img):
+        dims = img.shape
+        if len(dims) == 1:
+            return img
+        return img.reshape(reduce(mul, dims))
     
-    def _flat(self, _set):
-       dims = _set.shape
+    def _flat(self, _data):
+       dims = _data.shape
        if len(dims) <= 2:
-           return _set
+           return _data
        flat = reduce(mul, dims[1:])
-       return _set.reshape(dims[0], flat)
+       return _data.reshape(dims[0], reduce(mul, dims[1:]))

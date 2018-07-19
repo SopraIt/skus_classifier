@@ -1,4 +1,5 @@
 from glob import glob
 
-PATH = 'skusclf/tests/stubs'
+PATH = 'skusclf/stubs/images'
 IMAGES = glob(f'{PATH}/*.png')
+
