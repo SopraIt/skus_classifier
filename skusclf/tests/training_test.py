@@ -1,6 +1,6 @@
 import unittest
-from skusclf import training
 import stubs
+from skusclf import training
 
 
 class TestTraining(unittest.TestCase):
