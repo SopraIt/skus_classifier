@@ -8,6 +8,11 @@ import numpy as np
 class Normalizer:
     MODE = 'RGBA'
     COLOR = (255, 0, 0, 0)
+    
+    @classmethod
+    def bulk(cls, folder='./images'):
+        for name in glob(f'{folder}/*.png'):
+            cls(name).save()
 
     def __init__(self, name, mode=MODE, color=COLOR):
         self.name = name
@@ -19,7 +24,8 @@ class Normalizer:
 
     def save(self, name=None):
         name = name or self.name
-        c = self._canvas().paste(self.img, self._offset())
+        c = self._canvas()
+        c.paste(self.img, self._offset())
         c = c.quantize()
         c.save(name)
 
