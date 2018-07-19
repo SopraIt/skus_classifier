@@ -15,21 +15,12 @@ class TestModel(unittest.TestCase):
         self.assertEqual(len(clf.y_train), 3)
         self.assertEqual(len(clf.y_test), 1)
 
-    def test_true_prediction(self):
+    def test_prediction(self):
         clf = model.Classifier(data=self.data, labels=self.labels)
-        lb = self.labels[0]
         flat_data = clf._flat(self.data)
         img = flat_data[0]
-        p = clf.predict(lb, img)
-        self.assertTrue(p[0])
-
-    def test_false_prediction(self):
-        clf = model.Classifier(data=self.data, labels=self.labels)
-        lb = self.labels[-1]
-        flat_data = clf._flat(self.data)
-        img = flat_data[0]
-        p = clf.predict(lb, img)
-        self.assertFalse(p[0])
+        res = clf.predict(img)
+        self.assertEqual(res, [self.labels[0]])
 
 
 if __name__ == '__main__':

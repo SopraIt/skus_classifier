@@ -13,22 +13,18 @@ class Classifier:
         self.dims = self.X_train[0].shape
         self.flat_dim = reduce(mul, self.dims)
     
-    def predict(self, lb, img):
-        self._fit(lb)
+    def predict(self, img, test=False):
+        self._fit(test)
         return self.clf.predict([img])
 
-    def _fit(self, lb):
-        self._flatten()
-        self._by_label(lb)
-        self.clf.fit(self.X_train, self.y_train_lb)
+    def _fit(self, test):
+        X = self.X_test if test else self.X_train
+        y = self.y_test if test else self.y_train
+        X, y = self._flatten(X, y)
+        self.clf.fit(X, y)
         
-    def _by_label(self, lb):
-        self.y_train_lb = (self.y_train == lb)
-        self.y_test_lb = (self.y_test == lb)
-
-    def _flatten(self):
-        self.X_train = self._flat(self.X_train)
-        self.y_train = self._flat(self.y_train)
+    def _flatten(self, X, y):
+        return self._flat(X), self._flat(y)
     
     def _flat(self, _set):
        dims = _set.shape
