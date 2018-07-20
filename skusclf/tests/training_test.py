@@ -4,12 +4,16 @@ from skusclf import stubs, training
 
 class TestTraining(unittest.TestCase):
     def test_normalizer_attrs(self):
-        norm = training.Normalizer(stubs.IMAGES[-1])
-        self.assertEqual(norm.img.__class__.__name__, 'PngImageFile')
-        self.assertEqual(norm.w, 250)
-        self.assertEqual(norm.h, 250)
+        norm = training.Normalizer(stubs.IMAGES[-1], max_size=200)
+        self.assertEqual(norm.img.__class__.__name__, 'Image')
+        self.assertEqual(norm.w, 200)
+        self.assertEqual(norm.h, 200)
         self.assertEqual(norm._offset(), (0, 0))
-        self.assertEqual(norm._canvas().size, (250, 250))
+        self.assertEqual(norm._canvas().size, (200, 200))
+
+    def test_set_max_size(self):
+        loader = training.Loader(stubs.PATH)
+        self.assertEqual(loader.max_size(), 250)
 
     def test_set_descr_keys(self):
         loader = training.Loader(stubs.PATH)
