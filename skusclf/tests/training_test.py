@@ -11,24 +11,20 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(norm._offset(), (0, 0))
         self.assertEqual(norm._canvas().size, (200, 200))
 
-    def test_set_max_size(self):
-        loader = training.Loader(stubs.PATH)
-        self.assertEqual(loader.max_size(), 250)
-
     def test_set_descr_keys(self):
-        loader = training.Loader(stubs.PATH)
-        col_names = loader.set().get('COL_NAMES')
-        descr = loader.set().get('DESCR')
-        self.assertEqual(col_names, ('labels', 'data'))
-        self.assertTrue(descr)
+        loader = training.Loader(stubs.PATH, 250)
+        s = loader.set()
+        self.assertEqual(s.get('COL_NAMES'), ('target', 'data', 'size'))
+        self.assertTrue(s.get('DESCR'))
+        self.assertEqual(s.get('size'), 250)
 
-    def test_set_labels(self):
-        loader = training.Loader(stubs.PATH)
-        labels = loader.set().get('labels')
-        self.assertEqual(list(labels), ['543508_Z317M_9511', '543060_XRC03_4048', '543324_0YFAT_1061', '400249_CXZFD_5278'])
+    def test_set_target(self):
+        loader = training.Loader(stubs.PATH, 250)
+        target = loader.set().get('target')
+        self.assertEqual(list(target), ['543508_Z317M_9511', '543060_XRC03_4048', '543324_0YFAT_1061', '400249_CXZFD_5278'])
 
     def test_set_data(self):
-        loader = training.Loader(stubs.PATH)
+        loader = training.Loader(stubs.PATH, 250)
         data = loader.set().get('data')
         for img in data:
             self.assertEqual(img.__class__.__name__, 'ndarray')

@@ -1,19 +1,19 @@
 from functools import reduce
 from operator import mul
+from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
 
-class Classifier:
+class Model:
     '''
     Synopsis
     --------
-    Performs a predictions by using a custom scikit-learn classifier model.
+    Performs a predictions by using the Stochastic Gradient Descent (SGD) scikit-learn classifier.
     
     Arguments
     ---------
-    - data: the image binaries training set (X)
-    - labels: the labels training set (y)
+    - dataset: the path to the dataset, previously normalized and pickled
     - rand: the random seed used by classifier and for train/test splitting
     - test_size: the percentage of the test set
 
@@ -23,23 +23,16 @@ class Classifier:
 
     Constructor
     -----------
-    >>> clf = Classifier(data=array(...), labels=array(...),
-    >>>                  rand=42, test_size=0.3) 
+    >>> clf = Classifier(dataset=./skus_400x400.pkl, rand=42, test_size=0.3) 
     '''
 
     RAND = 42
+    KEYS = ('data', 'target')
     
-    @classmethod
-    def factory(cls, loader):
-        '''
-        Returns an instance by passing the Loader collaborator
-        '''
-        _set = loader.set()
-        return cls(data=_set.get('data'), labels=_set.get('labels'))
-
-    def __init__(self, data=None, labels=None, rand=RAND, test_size=0.2):
+    def __init__(self, dataset, rand=RAND, test_size=0.2):
+        self.dataset = joblib.load(dataset)
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(data, labels, random_state=rand, test_size=test_size)
+        self.X_train, self.X_test, self.y_train, self.y_test = self._split_set(rand, test_size)
         self.dims = self.X_train[0].shape
         self.flat_dim = reduce(mul, self.dims)
     
@@ -58,6 +51,10 @@ class Classifier:
         y = self.y_test if test else self.y_train
         X, y = self._flatten(X, y)
         self.model.fit(X, y)
+    
+    def _split_set(self, rand, test_size):
+        X, y = tuple(self.dataset[k] for k in self.KEYS)
+        return train_test_split(X, y, random_state=rand, test_size=test_size)
         
     def _flatten(self, X, y):
         return self._flat(X), self._flat(y)

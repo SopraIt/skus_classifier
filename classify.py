@@ -1,48 +1,58 @@
 from argparse import ArgumentParser
-from warnings import filterwarnings
+from glob import glob
+from os import path, remove
 from sys import argv
-import numpy as np
 from matplotlib.pyplot import imread
-from skusclf import model, training
+from skusclf import classifier, training
 
 
 class CLI:
     '''
     Synopsis
     --------
-    A plain CLI wrapper over the model.Classifier class.
+    A plain CLI wrapper over the classifier.model class.
     '''
 
-    DESC = 'Classify the specified PNG basing on the passed supervised model'
-    RAND = 42
-    IMG_FOLDER = './images'
+    DESC = 'Classify the images basing on a specific supervised model'
+    FOLDER = './images'
+    MAX_SIZE = 370
+    TMP_IMG = './norm.png'
 
     def __init__(self, args=argv[1:]):
         self.args = args
+        self.opts = self._parser().parse_args(self.args)
 
     def classify(self):
-        filterwarnings('ignore')
-        opts = self._parser().parse_args(self.args)
-        print(f'Calssifying {opts.img}')
-        loader = self._loader(opts.folder)
-        clf = model.Classifier.factory(loader)
-        img = self._img(opts.img, loader.max_size())
-        res = clf.predict(img)
+        print(f'Calssifying {self.opts.img}')
+        mod = classifier.Model(self._dataset())
+        img = self._img(mod.dataset.get('size'))
+        res = mod.predict(img)
         print(f'Classified as: {repr(res)}')
 
-    def _loader(self, folder):
-        return training.Loader(folder)
+    def _img(self, max_size):
+        if path.isfile(self.opts.img):
+            norm = training.Normalizer(self.opts.img, max_size)
+            norm.save(self.TMP_IMG)
+            img_data = imread(self.TMP_IMG)
+            remove(self.TMP_IMG)
+            return img_data
 
-    def _img(self, img, max_size):
-        norm = training.Normalizer(img, max_size)
-        img_data = norm.hop()
-        return np.asarray(img_data)
+    def _dataset(self):
+        if self.opts.dataset and path.isfile(self.opts.dataset):
+            return self.opts.dataset
+        files = glob('./*.pkl')
+        if files:
+            return files[0]
+        print('creating a brand new dataset...')
+        l = training.Loader(self.FOLDER, self.MAX_SIZE) 
+        name = l.save() 
+        print(f'classifying versus the {name} dataset')
+        return name
 
     def _parser(self):
         parser = ArgumentParser(description=self.DESC)
-        parser.add_argument('-f', '--folder',
-                            default=self.IMG_FOLDER,
-                            help=f'the source folder to load PNG images from, default to {self.IMG_FOLDER}')
+        parser.add_argument('-d', '--dataset',
+                            help=f'the pickled dataset to be used for classification')
         parser.add_argument('-i', '--img',
                             required=True,
                             help=f'the path to the PNG image to classify')
