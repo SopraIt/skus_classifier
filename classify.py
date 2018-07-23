@@ -15,8 +15,7 @@ class CLI:
 
     DESC = 'Classify the images basing on a specific supervised model'
     FOLDER = './images'
-    MAX_SIZE = 370
-    TMP_IMG = './norm.png'
+    MAX_SIZE = 400
 
     def __init__(self, args=argv[1:]):
         self.args = args
@@ -32,10 +31,8 @@ class CLI:
     def _img(self, max_size):
         if path.isfile(self.opts.img):
             norm = training.Normalizer(self.opts.img, max_size)
-            norm.save(self.TMP_IMG)
-            img_data = imread(self.TMP_IMG)
-            remove(self.TMP_IMG)
-            return img_data
+            norm.save()
+            return imread(self.opts.img)
 
     def _dataset(self):
         if self.opts.dataset and path.isfile(self.opts.dataset):
@@ -53,6 +50,9 @@ class CLI:
         parser = ArgumentParser(description=self.DESC)
         parser.add_argument('-d', '--dataset',
                             help=f'the pickled dataset to be used for classification')
+        parser.add_argument('-s', '--size',
+                            default=self.MAX_SIZE,
+                            help=f'the max size used to normalize the dataset (if none is available)')
         parser.add_argument('-i', '--img',
                             required=True,
                             help=f'the path to the PNG image to classify')

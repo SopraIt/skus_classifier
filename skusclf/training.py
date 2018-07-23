@@ -1,8 +1,12 @@
 from glob import glob
 from os import path
 from matplotlib.pyplot import imread
-from sklearn.externals import joblib
 from PIL import Image
+from skimage.color import rgb2gray
+from skimage.exposure import rescale_intensity
+from skimage.transform import rescale, rotate
+from skimage.util import random_noise
+from sklearn.externals import joblib
 import numpy as np
 
 
@@ -89,6 +93,60 @@ class Normalizer:
 
     def _normalized(self):
         return self.orig_w == self.max_size and self.orig_h == self.max_size
+
+    def _contrast(self):
+        pass
+
+
+class Augmenter:
+    '''
+    Synopsis
+    --------
+    Performs dataset augmentation by performing transformations on the original
+    image, courtesy of the scikit-image library.
+
+    Arguments
+    ---------
+    - img: a numpy.ndarray representing the image to transform
+
+    Returns
+    -------
+    A list of numpy.ndarray representing the images with all of the applied
+    transformations.
+
+    Constructor
+    -----------
+    >>> aug = Augmenter(array[[[1., 0., 0., 0.],[[1., 0., 0., 0.]...])
+    >>> aug.images()
+    array([[[[1., 0., 0., 0.],
+          [1., 0., 0., 0.],
+          [1., 0., 0., 0.],
+          ...
+    '''
+
+    def __init__(self, img):
+        self.img = img
+        self.augmented = []
+
+    def _rescale(self):
+        scales = (1/n for n in np.arange(1.25, 8.25, 0.25))
+        for s in scales:
+            self.augmented.append(rescale(self.img, s))
+
+    def _noise(self):
+        modes = ('gaussian', 'poisson', 'salt', 'pepper', 's&p', 'speckle')
+        for m in modes:
+            self.augmented.append(random_noise(self.img, m))
+
+    def _desaturate(self):
+        self.augmented.append(rgb2gray(self.img))
+
+    def _invert(self):
+        self.augmented.append(np.invert(self.img))
+
+    def _rotate(self):
+        for a in range(10, 360, 10):
+            self.augmented.append(rotate(self.img, a, resize=True))
 
 
 class Loader:
