@@ -2,10 +2,13 @@ from glob import glob
 from os import path
 from matplotlib.pyplot import imread
 from PIL import Image
+from scipy.ndimage import uniform_filter
 from skimage.color import rgb2gray
-from skimage.exposure import rescale_intensity
+from skimage.color.adapt_rgb import adapt_rgb, each_channel, hsv_value
+from skimage.exposure import adjust_gamma, adjust_sigmoid, rescale_intensity
+from skimage.filters import sobel
 from skimage.transform import rescale, rotate
-from skimage.util import random_noise
+from skimage.util import invert, random_noise
 from sklearn.externals import joblib
 import numpy as np
 
@@ -94,59 +97,110 @@ class Normalizer:
     def _normalized(self):
         return self.orig_w == self.max_size and self.orig_h == self.max_size
 
-    def _contrast(self):
-        pass
-
 
 class Augmenter:
     '''
     Synopsis
     --------
-    Performs dataset augmentation by performing transformations on the original
-    image, courtesy of the scikit-image library.
+    Performs dataset augmentation by performing the following transformations on 
+    the original image:
+    - rescaling and cropping
+    - adding random noise
+    - inverting colors
+    - rotating
+    - adjusting intensity
+    - adjusting gamma colors
+    - adjusting contrast
+    - blurring
+    - flipping (horizontally and vertically)
 
     Arguments
     ---------
-    - img: a numpy.ndarray representing the image to transform
-
-    Returns
-    -------
-    A list of numpy.ndarray representing the images with all of the applied
-    transformations.
+    - mag: the order of magnitude of the augmentation, 2 or 3
 
     Constructor
     -----------
-    >>> aug = Augmenter(array[[[1., 0., 0., 0.],[[1., 0., 0., 0.]...])
-    >>> aug.images()
-    array([[[[1., 0., 0., 0.],
-          [1., 0., 0., 0.],
-          [1., 0., 0., 0.],
-          ...
+    >>> aug = Augmenter(2)
     '''
 
-    def __init__(self, img):
+    MAG = 3
+    RESCALE_MODE = 'constant'
+
+    def __init__(self, mag=MAG):
+        self.mag = mag
+    
+    def __call__(self, img):
+        '''
+        Synopsis
+        --------
+        Returns a generator with original image and all of its transformations:
+
+        Arguments
+        ---------
+        - img: a numpy.ndarray representing the image to transform
+
+        >>> output = aug.images()
+        '''
         self.img = img
-        self.augmented = []
+        self.size = img.shape[0]
+        yield self.img
+        transformers = (t for t in dir(self) if t.startswith('_') and not t.startswith('__'))
+        for t in transformers:
+            _m = getattr(self, t)
+            yield from _m()
 
     def _rescale(self):
-        scales = (1/n for n in np.arange(1.25, 8.25, 0.25))
-        for s in scales:
-            self.augmented.append(rescale(self.img, s))
+        step = 1.1 if self.mag == 2 else 0.1
+        for _s in (n for n in np.arange(1.1, 3.1, step)):
+            _data = rescale(self.img, _s, mode=self.RESCALE_MODE, 
+                            anti_aliasing=True, multichannel=True)
+            _start = _data.shape[0]//2-(self.size//2)
+            _end = _start+self.size
+            yield _data[_start:_end,_start:_end]
 
     def _noise(self):
         modes = ('gaussian', 'poisson', 'salt', 'pepper', 's&p', 'speckle')
-        for m in modes:
-            self.augmented.append(random_noise(self.img, m))
-
-    def _desaturate(self):
-        self.augmented.append(rgb2gray(self.img))
+        if self.mag == 2:
+            modes = modes[:1]
+        for _m in modes:
+            yield random_noise(self.img, _m)
 
     def _invert(self):
-        self.augmented.append(np.invert(self.img))
+        if self.mag >= 3:
+            yield invert(self.img)
 
     def _rotate(self):
-        for a in range(10, 360, 10):
-            self.augmented.append(rotate(self.img, a, resize=True))
+        step = 350 if self.mag == 2 else 10
+        for _a in range(10, 360, step):
+            yield rotate(self.img, _a)
+
+    def _intensity(self):
+        step = 2.1 if self.mag == 2 else 0.2
+        for _max in np.arange(0.1, 4., step):
+            yield rescale_intensity(self.img, in_range=(.0, _max))
+    
+    def _gamma(self):
+        step = 2.2 if self.mag == 2 else 0.2
+        for _g in np.arange(0.1, 4., step):
+            yield adjust_gamma(self.img, gamma=_g, gain=0.9)
+    
+    def _contrast(self):
+        step = 1. if self.mag == 2 else 0.1
+        for _c in np.arange(0.0, 1., 0.1):
+            yield adjust_sigmoid(self.img, cutoff=_c)
+
+    def _blur(self):
+        step = 15 if self.mag == 2 else 3
+        for _b in range(3, 18, step):
+            yield uniform_filter(self.img, size=(_b, _b, 1))
+
+    def _flip_h(self):
+        if self.mag >= 3:
+            yield self.img[:, ::-1]
+
+    def _flip_v(self):
+        if self.mag >= 3:
+            yield self.img[::-1, :]
 
 
 class Loader:
@@ -164,8 +218,9 @@ class Loader:
     - max_size: the max size used to normalize the images
     - fetcher: a callable taking as an argument the filename and returning the
       formatted label
-    - normalizer: tha class used to normalize the images within the folder
+    - normalizer: the class used to normalize the images within the folder
       by the specified max_size, must respond to the "bulk" method
+    - augmenter: a collaborator used to augment data of two order of magnitude
 
     Constructor
     -----------
@@ -175,14 +230,18 @@ class Loader:
 
     FETCHER = lambda n: '_'.join(path.basename(n).split('_')[:3])
 
-    def __init__(self, folder, max_size, fetcher=FETCHER, normalizer=Normalizer):
+    def __init__(self, folder, max_size, fetcher=FETCHER, 
+                 normalizer=Normalizer, augmenter=Augmenter()):
         self.folder = folder
         self._images = glob(f'{folder}/*')
         self.max_size = int(max_size)
         self.norm_size = f'{self.max_size}x{self.max_size}'
         self._fetcher = fetcher
         self.normalizer = normalizer
-        self._set = []
+        self.augmenter = augmenter
+        self._set = {'COL_NAMES': ('target', 'data', 'size'),
+                     'DESCR': 'the SKUs dataset, normalized and augmented',
+                     'size': self.max_size}
     
     def save(self, name=None):
         '''
@@ -202,22 +261,25 @@ class Loader:
         array([[[[1., 0., 0., 0.],
               [1., 0., 0., 0.],
               [1., 0., 0., 0.],
-              ...
+              ...]]])
         '''
-        if not self._set:
+        if 'data' not in self._set:
             self._normalize()
-            self._set = {'COL_NAMES': ('target', 'data', 'size'),
-                         'DESCR': f'the SKUs images, normalized {self.norm_size} pixels and their codes',
-                         'target': self._target(),
-                         'data': self._data(),
-                         'size': self.max_size}
+            self._set['data'], self._set['target'] = self._dataset()
         return self._set
 
-    def _data(self):
-        return np.array([imread(img) for img in self._images])
+    def _dataset(self):
+        _data = []
+        _target = []
+        for img in self._images:
+            _sku = self._fetcher(img)
+            for _img in self.augmenter(imread(img)):
+                _data.append(_img)
+                _target.append(_sku)
+        return tuple(np.array(x) for x in (_data, _target))
 
-    def _target(self):
-        return np.array([self._fetcher(img) for img in self._images])
+    def _augmenter(self, img):
+        return self.augmenter(img)
 
     def _normalize(self):
         self.normalizer.bulk(self.folder, self.max_size)

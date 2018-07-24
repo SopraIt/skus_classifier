@@ -1,4 +1,5 @@
 import unittest
+from matplotlib.pyplot import imread
 from skusclf import stubs, training
 
 
@@ -10,25 +11,23 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(norm.h, 200)
         self.assertEqual(norm._offset(), (0, 0))
         self.assertEqual(norm._canvas().size, (200, 200))
+    
+    def test_data_augmenting(self):
+        img = imread(stubs.IMAGES[-1])
+        aug = training.Augmenter(mag=2)
+        output = list(aug(img))
+        self.assertEqual(len(output), 20)
+        self.assertTrue(all(img.shape == (250, 250, 4) for img in output))
 
-    def test_set_descr_keys(self):
-        loader = training.Loader(stubs.PATH, 250)
+    def test_training_set(self):
+        loader = training.Loader(stubs.PATH, 250, augmenter=lambda x: [x])
         s = loader.set()
+        X, y = [s[k] for k in ('data', 'target')]
         self.assertEqual(s.get('COL_NAMES'), ('target', 'data', 'size'))
         self.assertTrue(s.get('DESCR'))
         self.assertEqual(s.get('size'), 250)
-
-    def test_set_target(self):
-        loader = training.Loader(stubs.PATH, 250)
-        target = loader.set().get('target')
-        self.assertEqual(list(target), ['543508_Z317M_9511', '543060_XRC03_4048', '543324_0YFAT_1061', '400249_CXZFD_5278'])
-
-    def test_set_data(self):
-        loader = training.Loader(stubs.PATH, 250)
-        data = loader.set().get('data')
-        for img in data:
-            self.assertEqual(img.__class__.__name__, 'ndarray')
-
+        self.assertEqual(X.shape, (4, 250, 250, 4))
+        self.assertEqual(y.shape, (4,))
 
 if __name__ == '__main__':
     unittest.main()
