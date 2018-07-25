@@ -15,7 +15,7 @@ class CLI:
 
     DESC = 'Classify the images basing on a specific supervised model'
     FOLDER = './images'
-    MAX_SIZE = 400
+    MAX_SIZE = 250
 
     def __init__(self, args=argv[1:]):
         self.args = args

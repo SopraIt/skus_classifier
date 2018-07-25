@@ -3,12 +3,9 @@ from os import path
 from matplotlib.pyplot import imread
 from PIL import Image
 from scipy.ndimage import uniform_filter
-from skimage.color import rgb2gray
-from skimage.color.adapt_rgb import adapt_rgb, each_channel, hsv_value
-from skimage.exposure import adjust_gamma, adjust_sigmoid, rescale_intensity
-from skimage.filters import sobel
+from skimage.exposure import adjust_gamma, rescale_intensity
 from skimage.transform import rescale, rotate
-from skimage.util import invert, random_noise
+from skimage.util import random_noise
 from sklearn.externals import joblib
 import numpy as np
 
@@ -40,23 +37,23 @@ class Normalizer:
     COLOR = (255, 0, 0, 0)
     
     @classmethod
-    def bulk(cls, folder, max_size):
+    def bulk(cls, folder, max_size, optimize=False):
         '''
         Overwrites all images in the specified folder, returns the number of normilzed files:
         >>> Normalizer.bulk(folder='./my_images', max_size=400)
         '''
         n = 0
         for name in glob(f'{folder}/*'):
-            if cls(name, max_size).save():
+            if cls(name, max_size, optimize).save():
                 n += 1
         return n
 
-    def __init__(self, name, max_size, mode=MODE, color=COLOR, optimize=False):
+    def __init__(self, name, max_size, optimize, mode=MODE, color=COLOR):
         self.name = name
         self.max_size = int(max_size)
+        self.optimize = optimize
         self.mode = mode
         self.color = color
-        self.optimize = optimize
         self.img = self._resize()
         self.w, self.h = self.img.size
 
@@ -106,13 +103,14 @@ class Augmenter:
     the original image:
     - rescaling and cropping
     - adding random noise
-    - inverting colors
     - rotating
-    - adjusting intensity
-    - adjusting gamma colors
     - adjusting contrast
+    - adjusting gamma colors
     - blurring
     - flipping (horizontally and vertically)
+
+    The transofrmers methods are collected bu iterating on attributes starting with 
+    the prefix '_tr': be aware of that when extending this class.
 
     Arguments
     ---------
@@ -123,11 +121,12 @@ class Augmenter:
     >>> aug = Augmenter(2)
     '''
 
-    MAG = 3
+    MAGS = (2, 3)
     RESCALE_MODE = 'constant'
+    NOISE_MODE = 'speckle'
 
-    def __init__(self, mag=MAG):
-        self.mag = mag
+    def __init__(self, mag=MAGS[1]):
+        self.mag = self._check_mag(mag)
     
     def __call__(self, img):
         '''
@@ -144,62 +143,62 @@ class Augmenter:
         self.img = img
         self.size = img.shape[0]
         yield self.img
-        transformers = (t for t in dir(self) if t.startswith('_') and not t.startswith('__'))
+        transformers = (t for t in dir(self) if t.startswith('_tr'))
         for t in transformers:
             _m = getattr(self, t)
             yield from _m()
 
-    def _rescale(self):
-        step = 1.1 if self.mag == 2 else 0.1
-        for _s in (n for n in np.arange(1.1, 3.1, step)):
+    def _check_mag(self, mag):
+        if int(mag) not in self.MAGS:
+            raise ValueError(f'magnitude {mag} is not within 2 and 3')
+        return int(mag)
+
+    def _hi_mag(self):
+        return self.mag >= 3
+
+    def _step(self, low, hi):
+        return hi if self.mag == 2 else low
+
+    def _tr_rescale(self):
+        step = self._step(.1, 1.1)
+        for _s in np.arange(1.1, 3.1, step):
             _data = rescale(self.img, _s, mode=self.RESCALE_MODE, 
                             anti_aliasing=True, multichannel=True)
             _start = _data.shape[0]//2-(self.size//2)
             _end = _start+self.size
             yield _data[_start:_end,_start:_end]
 
-    def _noise(self):
-        modes = ('gaussian', 'poisson', 'salt', 'pepper', 's&p', 'speckle')
-        if self.mag == 2:
-            modes = modes[:1]
-        for _m in modes:
-            yield random_noise(self.img, _m)
+    def _tr_noise(self):
+        step = self._step(.02, .6)
+        for _v in np.arange(.02, .6, step):
+            yield random_noise(self.img, mode=self.NOISE_MODE, var=_v)
 
-    def _invert(self):
-        if self.mag >= 3:
-            yield invert(self.img)
-
-    def _rotate(self):
-        step = 350 if self.mag == 2 else 10
-        for _a in range(10, 360, step):
+    def _tr_rotate(self):
+        step = self._step(5, 350)
+        for _a in range(5, 360, step):
             yield rotate(self.img, _a)
 
-    def _intensity(self):
-        step = 2.1 if self.mag == 2 else 0.2
-        for _max in np.arange(0.1, 4., step):
+    def _tr_contrast(self):
+        step = self._step(.2, 2.1)
+        for _max in np.arange(.1, 4., step):
             yield rescale_intensity(self.img, in_range=(.0, _max))
     
-    def _gamma(self):
-        step = 2.2 if self.mag == 2 else 0.2
-        for _g in np.arange(0.1, 4., step):
-            yield adjust_gamma(self.img, gamma=_g, gain=0.9)
+    def _tr_gamma(self):
+        step = self._step(.2, 4.)
+        for _g in np.arange(.1, 4., step):
+            yield adjust_gamma(self.img, gamma=_g, gain=.9)
     
-    def _contrast(self):
-        step = 1. if self.mag == 2 else 0.1
-        for _c in np.arange(0.0, 1., 0.1):
-            yield adjust_sigmoid(self.img, cutoff=_c)
-
-    def _blur(self):
-        step = 15 if self.mag == 2 else 3
-        for _b in range(3, 18, step):
+    def _tr_blur(self):
+        step = self._step(1, 18)
+        for _b in range(1, 18, step):
             yield uniform_filter(self.img, size=(_b, _b, 1))
 
-    def _flip_h(self):
-        if self.mag >= 3:
+    def _tr_flip_h(self):
+        if self._hi_mag():
             yield self.img[:, ::-1]
 
-    def _flip_v(self):
-        if self.mag >= 3:
+    def _tr_flip_v(self):
+        if self._hi_mag():
             yield self.img[::-1, :]
 
 
@@ -249,7 +248,7 @@ class Loader:
         >>> loader.save('./mystuff.pkl')
         '''
         _set = self.set()
-        name = name or f'./skus_{self.norm_size}.pkl'
+        name = name or f'./dataset_{self.norm_size}.pkl'
         joblib.dump(_set, name)
         return name
 
