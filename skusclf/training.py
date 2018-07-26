@@ -1,6 +1,7 @@
 from glob import glob
+import gzip
 from os import path
-from matplotlib.pyplot import imread
+import matplotlib.pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
 from skimage.exposure import adjust_gamma, rescale_intensity
@@ -8,6 +9,7 @@ from skimage.transform import rescale, rotate
 from skimage.util import random_noise
 from sklearn.externals import joblib
 import numpy as np
+from skusclf.logger import BASE as logger
 
 
 class Normalizer:
@@ -36,63 +38,65 @@ class Normalizer:
     MODE = 'RGBA'
     COLOR = (255, 0, 0, 0)
     
-    @classmethod
-    def bulk(cls, folder, max_size, optimize=False):
-        '''
-        Overwrites all images in the specified folder, returns the number of normilzed files:
-        >>> Normalizer.bulk(folder='./my_images', max_size=400)
-        '''
-        n = 0
-        for name in glob(f'{folder}/*'):
-            if cls(name, max_size, optimize).save():
-                n += 1
-        return n
-
-    def __init__(self, name, max_size, optimize, mode=MODE, color=COLOR):
-        self.name = name
+    def __init__(self, max_size, optimize=True, mode=MODE, color=COLOR):
         self.max_size = int(max_size)
         self.optimize = optimize
         self.mode = mode
         self.color = color
-        self.img = self._resize()
-        self.w, self.h = self.img.size
 
-    def save(self, name=None):
+    def bulk(self, folder):
         '''
-        Create a new version of the image (if not already normalized):
-        >>> norm.save('./my_images/new_img.png')
+        Overwrites all images in the specified folder, returns the number of normilzed files:
+        >>> norm.bulk(folder='./my_images')
         '''
-        if self._normalized():
-            return
-        name = name or self.name
-        self.hop().save(name)
-        return True
+        n = 0
+        for name in glob(f'{folder}/*'):
+            n += self.persist(name)
+        return n
 
-    def hop(self):
+    def persist(self, name):
+        '''
+        Create/replace a normalized version of the image (if it isn't yet):
+        >>> norm.persist('./my_images/new_img.png')
+        '''
+        logger.info('saving file: %s', name)
+        img = self(name)
+        if not img: return 0
+        img.save(name)
+        return 1
+
+    def __call__(self, name):
         '''
         Creates a squared canvas, by pasting image and optimizing it
         '''
+        logger.info('hopping image by creating a squared canvas')
+        img = self._resize(name)
+        if not img: return
+        w, h = img.size
         c = self._canvas()
-        c.paste(self.img, self._offset())
+        c.paste(img, self._offset(w, h))
         if self.optimize:
+            logger.info('optmizing PNG')
             return c.quantize()
         return c
     
-    def _resize(self):
-        img = Image.open(self.name)
-        self.orig_w, self.orig_h = img.size
-        ratio = max(self.orig_w, self.orig_h) / self.max_size
-        size = (int(self.orig_w // ratio), int(self.orig_h // ratio))
+    def _resize(self, name):
+        img = Image.open(name)
+        w, h = img.size
+        if self._skip(w, h): return
+        ratio = max(w, h) / self.max_size
+        size = (int(w // ratio), int(h // ratio))
+        logger.info('resizing image to %r', size)
         return img.resize(size)
+
+    def _skip(self, w, h):
+        return w == self.max_size and h == self.max_size
 
     def _canvas(self):
         return Image.new(self.mode, (self.max_size, self.max_size), self.color)
 
-    def _offset(self):
-        return ((self.max_size - self.w) // 2, (self.max_size - self.h) // 2)
-
-    def _normalized(self):
-        return self.orig_w == self.max_size and self.orig_h == self.max_size
+    def _offset(self, w, h):
+        return ((self.max_size - w) // 2, (self.max_size - h) // 2)
 
 
 class Augmenter:
@@ -114,19 +118,18 @@ class Augmenter:
 
     Arguments
     ---------
-    - mag: the order of magnitude of the augmentation, 2 or 3
+    - limit: limit the number of transformations, default to no limit (about 200)
 
     Constructor
     -----------
-    >>> aug = Augmenter(2)
+    >>> aug = Augmenter(50)
     '''
 
-    MAGS = (2, 3)
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
 
-    def __init__(self, mag=MAGS[1]):
-        self.mag = self._check_mag(mag)
+    def __init__(self, limit=0):
+        self.limit = int(limit)
     
     def __call__(self, img):
         '''
@@ -140,6 +143,7 @@ class Augmenter:
 
         >>> output = aug.images()
         '''
+        self.count = 1
         self.img = img
         self.size = img.shape[0]
         yield self.img
@@ -147,59 +151,75 @@ class Augmenter:
         for t in transformers:
             _m = getattr(self, t)
             yield from _m()
-
-    def _check_mag(self, mag):
-        if int(mag) not in self.MAGS:
-            raise ValueError(f'magnitude {mag} is not within 2 and 3')
-        return int(mag)
-
-    def _hi_mag(self):
-        return self.mag >= 3
-
-    def _step(self, low, hi):
-        return hi if self.mag == 2 else low
+    
+    def _check(self):
+        if not self.limit:
+            return True
+        if self.count < self.limit:
+            self.count += 1
+            return True
 
     def _tr_rescale(self):
-        step = self._step(.1, 1.1)
-        for _s in np.arange(1.1, 3.1, step):
+        logger.info('applying rescaling')
+        for _s in np.arange(1.1, 4.1, .1):
+            logger.debug('rescaling by %.2f', _s)
             _data = rescale(self.img, _s, mode=self.RESCALE_MODE, 
                             anti_aliasing=True, multichannel=True)
             _start = _data.shape[0]//2-(self.size//2)
             _end = _start+self.size
-            yield _data[_start:_end,_start:_end]
+            _data = _data[_start:_end,_start:_end]
+            if not self._check(): break
+            yield _data
 
     def _tr_noise(self):
-        step = self._step(.02, .6)
-        for _v in np.arange(.02, .6, step):
-            yield random_noise(self.img, mode=self.NOISE_MODE, var=_v)
+        logger.info('applying random noise')
+        for _v in np.arange(.04, .8, .04):
+            logger.debug('applying %s noise by %.2f', self.NOISE_MODE, _v)
+            _data = random_noise(self.img, mode=self.NOISE_MODE, var=_v)
+            if not self._check(): break
+            yield _data
 
     def _tr_rotate(self):
-        step = self._step(5, 350)
-        for _a in range(5, 360, step):
-            yield rotate(self.img, _a)
+        logger.info('applying rotation')
+        for _a in range(5, 360, 5):
+            logger.debug('rotating CCW by %d', _a)
+            _data = rotate(self.img, _a)
+            if not self._check(): break
+            yield _data
 
     def _tr_contrast(self):
-        step = self._step(.2, 2.1)
-        for _max in np.arange(.1, 4., step):
-            yield rescale_intensity(self.img, in_range=(.0, _max))
+        logger.info('applying contrast')
+        for _max in np.arange(.2, 6., .2):
+            logger.debug('augmenting contrast by %.2f',_max)
+            _data = rescale_intensity(self.img, in_range=(.0, _max))
+            if not self._check(): break
+            yield _data
     
     def _tr_gamma(self):
-        step = self._step(.2, 4.)
-        for _g in np.arange(.1, 4., step):
-            yield adjust_gamma(self.img, gamma=_g, gain=.9)
+        logger.info('applying gamma adjust')
+        for _g in np.arange(.2, 6., .2):
+            logger.debug('adjusting gamma by %.2f', _g)
+            _data = adjust_gamma(self.img, gamma=_g, gain=.9)
+            if not self._check(): break
+            yield _data
     
     def _tr_blur(self):
-        step = self._step(1, 18)
-        for _b in range(1, 18, step):
-            yield uniform_filter(self.img, size=(_b, _b, 1))
+        logger.info('applying blurring')
+        for _b in range(1, 20, 1):
+            logger.debug('blurring at the center by %d', _b)
+            _data = uniform_filter(self.img, size=(_b, _b, 1))
+            if not self._check(): break
+            yield _data
 
     def _tr_flip_h(self):
-        if self._hi_mag():
-            yield self.img[:, ::-1]
+        logger.info('applying flip H')
+        _data = self.img[:, ::-1]
+        if self._check(): yield _data
 
     def _tr_flip_v(self):
-        if self._hi_mag():
-            yield self.img[::-1, :]
+        logger.info('applying flip V')
+        _data = self.img[::-1, :]
+        if self._check(): yield _data
 
 
 class Loader:
@@ -207,19 +227,20 @@ class Loader:
     Synopsis
     --------
     Creates the training set by file system, assuming the name of the images
-    contain the label data, which is fetched by a custom routine.
-    Before to be stored into NumPy arrays, the images are resized and
-    normalized by using an external collaborator.
+    contain the target data, which is fetched by a custom routine.
+    Before to be stored into NumPy arrays, the images are normalized and 
+    augmented by using external collaborators.
 
     Arguments
     ---------
     - folder: the folder containing the PNG files
-    - max_size: the max size used to normalize the images
     - fetcher: a callable taking as an argument the filename and returning the
       formatted label
-    - normalizer: the class used to normalize the images within the folder
-      by the specified max_size, must respond to the "bulk" method
-    - augmenter: a collaborator used to augment data of two order of magnitude
+    - normalizer: a collaborator used to normalize the images within the folder,
+      if falsy no normalization is performed
+    - augmenter: a collaborator used to augment data of two order of magnitude,
+      if falsy no augmentation is performed
+    - persist: a flag indicating if augmented images must be persisted to disk
 
     Constructor
     -----------
@@ -228,57 +249,100 @@ class Loader:
     '''
 
     FETCHER = lambda n: '_'.join(path.basename(n).split('_')[:3])
+    DATASET_NAME = f'./dataset.pkl.gz'
+    TARGET_TYPE = '<U17'
 
-    def __init__(self, folder, max_size, fetcher=FETCHER, 
-                 normalizer=Normalizer, augmenter=Augmenter()):
+    @classmethod
+    def open(cls, name=DATASET_NAME):
+        '''
+        Open the specified dataset by unzipping and loading it
+        >>> loader.open('./mystuff.pkl.gz')
+        '''
+        logger.info('opening dataset: %s', name)
+        with gzip.open(name, 'rb') as gz:
+            return joblib.load(gz)
+
+    def __init__(self, folder, fetcher=FETCHER, persist=False,
+                 augmenter=Augmenter(200), normalizer=Normalizer(256)):
         self.folder = folder
-        self._images = glob(f'{folder}/*')
-        self.max_size = int(max_size)
-        self.norm_size = f'{self.max_size}x{self.max_size}'
-        self._fetcher = fetcher
+        self.images = sorted(glob(f'{folder}/*'))
+        self.images_count = len(self.images)
+        self.fetcher = fetcher
+        self.persist = persist
         self.normalizer = normalizer
         self.augmenter = augmenter
-        self._set = {'COL_NAMES': ('target', 'data', 'size'),
-                     'DESCR': 'the SKUs dataset, normalized and augmented',
-                     'size': self.max_size}
+        self._dataset = {'COL_NAMES': ('target', 'data'),
+                         'DESCR': 'the SKUs dataset, normalized and augmented'}
     
-    def save(self, name=None):
+    @property
+    def count(self):
+        limit = self.augmenter.limit if self.augmenter else 1
+        return self.images_count * limit
+    
+    @property
+    def shape(self):
+        if self.images_count:
+            img = plt.imread(self.images[0])
+            return img.shape
+
+
+    def store_dataset(self, name=DATASET_NAME):
         '''
-        Save the dataset for further usage by using scikit-learn joblib.
-        >>> loader.save('./mystuff.pkl')
+        Save the dataset as a gzipped piclle archive for further usage.
+        >>> loader.store_dataset('./mystuff.pkl.gz')
         '''
-        _set = self.set()
-        name = name or f'./dataset_{self.norm_size}.pkl'
-        joblib.dump(_set, name)
+        dataset = self.dataset()
+        logger.info('saving dataset: %s', name)
+        with gzip.open(name, 'wb') as gz:
+            joblib.dump(dataset, gz)
         return name
 
-    def set(self):
+    def dataset(self):
         '''
-        Creates the training set:
-        >>> _set = loader.set()
-        >>> _set['data']
+        Creates the training dataset:
+        >>> _dataset = loader.dataset()
+        >>> _dataset['data']
         array([[[[1., 0., 0., 0.],
               [1., 0., 0., 0.],
               [1., 0., 0., 0.],
               ...]]])
         '''
-        if 'data' not in self._set:
+        if 'data' not in self._dataset:
+            logger.info('loading training set')
             self._normalize()
-            self._set['data'], self._set['target'] = self._dataset()
-        return self._set
+            self._collect()
+        return self._dataset
 
-    def _dataset(self):
-        _data = []
-        _target = []
-        for img in self._images:
-            _sku = self._fetcher(img)
-            for _img in self.augmenter(imread(img)):
-                _data.append(_img)
-                _target.append(_sku)
-        return tuple(np.array(x) for x in (_data, _target))
+    def _collect(self):
+        logger.info('collected %d elements', self.count)
+        data = np.empty((self.count,) + self.shape, dtype=np.float32)
+        target = np.empty((self.count,), dtype=self.TARGET_TYPE)
+        i = 0
+        for name in self.images:
+            sku = self.fetcher(name)
+            img = plt.imread(name)
+            for n, aug in enumerate(self._augment(img)):
+                data[i, ...] = aug
+                target[i, ...] = sku
+                self._persist(name, n, aug)
+                i += 1
+        self._dataset['data'] = data
+        self._dataset['target'] = target
 
-    def _augmenter(self, img):
+    def _augment(self, img):
+        if not self.augmenter:
+            return [img]
         return self.augmenter(img)
 
+    def _persist(self, name, n, data):
+        if self.persist and n > 0:
+            basename = path.basename(name)
+            postfixed = basename.replace('.', f'_{n:03d}.')
+            name = path.join(self.folder, postfixed)
+            logger.debug('perisisting %s', name)
+            plt.imsave(name, data)
+
     def _normalize(self):
-        self.normalizer.bulk(self.folder, self.max_size)
+        if self.normalizer:
+            logger.info('normalizing images')
+            self.normalizer.bulk(self.folder)

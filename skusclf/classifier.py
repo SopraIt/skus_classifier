@@ -1,8 +1,8 @@
 from functools import reduce
 from operator import mul
-from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
+from skusclf.logger import BASE as logger
 
 
 class Model:
@@ -13,7 +13,7 @@ class Model:
     
     Arguments
     ---------
-    - dataset: the path to the dataset, previously normalized and pickled
+    - dataset: the dict dataset, previously normalized and augmented
     - rand: the random seed used by classifier and for train/test splitting
     - test_size: the percentage of the test set
 
@@ -30,29 +30,35 @@ class Model:
     KEYS = ('data', 'target')
     
     def __init__(self, dataset, rand=RAND, test_size=0.2):
-        self.dataset = joblib.load(dataset)
+        self.dataset = dataset
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
         self.X_train, self.X_test, self.y_train, self.y_test = self._split_set(rand, test_size)
         self.dims = self.X_train[0].shape
         self.flat_dim = reduce(mul, self.dims)
-    
+
     def predict(self, img, test=False):
         '''
         Accepts an image (as binary array) and performs a prediction
         versus the training set (the test one if test=True):
         >>> clf.predict()
         '''
+        logger.info('predict on %s dataset', self._env(test))
         self._fit(test)
         data = self._flat_img(img)
         return self.model.predict([data])
 
     def _fit(self, test):
+        logger.info('fitting data on %s', self._env(test))
         X = self.X_test if test else self.X_train
         y = self.y_test if test else self.y_train
         X, y = self._flatten(X, y)
         self.model.fit(X, y)
+
+    def _env(self, test):
+        return 'test' if test else 'training'
     
     def _split_set(self, rand, test_size):
+        logger.info('splitting training and test set')
         X, y = tuple(self.dataset[k] for k in self.KEYS)
         return train_test_split(X, y, random_state=rand, test_size=test_size)
         
