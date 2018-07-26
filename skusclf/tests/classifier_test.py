@@ -6,18 +6,17 @@ class TestClassifier(unittest.TestCase):
     def setUp(self):
         self.dataset = training.Loader.open(stubs.DATASET)
 
-    def test_training_test_sets(self):
-        mod = classifier.Model(self.dataset)
-        self.assertEqual(len(mod.X_train), 7)
-        self.assertEqual(len(mod.X_test), 2)
-        self.assertEqual(len(mod.y_train), 7)
-        self.assertEqual(len(mod.y_test), 2)
+    def test_prediction_training(self):
+        mod = classifier.Model()
+        for i, img in enumerate(self.dataset['data']):
+            res = mod.predict(img, self.dataset)
+            self.assertEqual(res[0], self.dataset['target'][i])
 
-    def test_prediction(self):
-        mod = classifier.Model(self.dataset)
-        img = mod.dataset['data'][2]
-        res = mod.predict(img)
-        self.assertEqual(res[0], mod.dataset['target'][2])
+    def test_prediction_test(self):
+        mod = classifier.Model()
+        for i, img in enumerate(self.dataset['data']):
+            res = mod.predict(img, self.dataset, test=True)
+            self.assertEqual(res[0], self.dataset['target'][i])
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 from glob import glob
 import gzip
 from os import path
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
 from skimage.exposure import adjust_gamma, rescale_intensity
@@ -146,7 +146,7 @@ class Augmenter:
         self.count = 1
         self.img = img
         self.size = img.shape[0]
-        yield self.img
+        yield self.img.flatten()
         transformers = (t for t in dir(self) if t.startswith('_tr'))
         for t in transformers:
             _m = getattr(self, t)
@@ -169,7 +169,7 @@ class Augmenter:
             _end = _start+self.size
             _data = _data[_start:_end,_start:_end]
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
 
     def _tr_noise(self):
         logger.info('applying random noise')
@@ -177,7 +177,7 @@ class Augmenter:
             logger.debug('applying %s noise by %.2f', self.NOISE_MODE, _v)
             _data = random_noise(self.img, mode=self.NOISE_MODE, var=_v)
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
 
     def _tr_rotate(self):
         logger.info('applying rotation')
@@ -185,7 +185,7 @@ class Augmenter:
             logger.debug('rotating CCW by %d', _a)
             _data = rotate(self.img, _a)
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
 
     def _tr_contrast(self):
         logger.info('applying contrast')
@@ -193,7 +193,7 @@ class Augmenter:
             logger.debug('augmenting contrast by %.2f',_max)
             _data = rescale_intensity(self.img, in_range=(.0, _max))
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
     
     def _tr_gamma(self):
         logger.info('applying gamma adjust')
@@ -201,7 +201,7 @@ class Augmenter:
             logger.debug('adjusting gamma by %.2f', _g)
             _data = adjust_gamma(self.img, gamma=_g, gain=.9)
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
     
     def _tr_blur(self):
         logger.info('applying blurring')
@@ -209,17 +209,19 @@ class Augmenter:
             logger.debug('blurring at the center by %d', _b)
             _data = uniform_filter(self.img, size=(_b, _b, 1))
             if not self._check(): break
-            yield _data
+            yield _data.flatten()
 
     def _tr_flip_h(self):
         logger.info('applying flip H')
         _data = self.img[:, ::-1]
-        if self._check(): yield _data
+        if self._check():
+            yield _data.flatten()
 
     def _tr_flip_v(self):
         logger.info('applying flip V')
         _data = self.img[::-1, :]
-        if self._check(): yield _data
+        if self._check():
+            yield _data.flatten()
 
 
 class Loader:
@@ -283,8 +285,7 @@ class Loader:
     def shape(self):
         if self.images_count:
             img = plt.imread(self.images[0])
-            return img.shape
-
+            return img.flatten().shape
 
     def store_dataset(self, name=DATASET_NAME):
         '''
@@ -321,6 +322,7 @@ class Loader:
         for name in self.images:
             sku = self.fetcher(name)
             img = plt.imread(name)
+            logger.info('working on sku %s', sku)
             for n, aug in enumerate(self._augment(img)):
                 data[i, ...] = aug
                 target[i, ...] = sku
@@ -331,7 +333,7 @@ class Loader:
 
     def _augment(self, img):
         if not self.augmenter:
-            return [img]
+            return [img.flatten()]
         return self.augmenter(img)
 
     def _persist(self, name, n, data):
