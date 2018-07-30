@@ -1,58 +1,67 @@
-from functools import reduce
-from operator import mul
+from os import path
+from matplotlib import pyplot as plt
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
-from skusclf import training
+from sklearn.preprocessing import LabelEncoder
 from skusclf.logger import BASE as logger
+from skusclf.training import Normalizer
 
 
 class Model:
     '''
     Synopsis
     --------
-    Performs a predictions by using the Stochastic Gradient Descent (SGD) scikit-learn classifier.
+    Performs a predictions by using the Stochastic Gradient Descent (SGD) 
+    scikit-learn classifier.
     
     Arguments
     ---------
-    - rand: the random seed used by classifier and for train/test splitting
-    - test_size: the percentage of the test set
+    - dataset: a dict like object having the 'X' and 'y' keys
+    - img: the path to the image or the binary data properly reshaped, of the
+      classification target
+    - size: the max size used to normalize the image to classify, try to fetch it
+      from dataset meta-attributes if not specified
+    - rand: the random seed used by classifier
 
     Returns
     -------
-    - the classified label/s set
+    - the classified label
 
     Constructor
     -----------
-    >>> clf = Classifier(rand=42, test_size=0.3) 
+    >>> clf = Classifier({'X': array[...], 'y': array[...]}, size=64, rand=666)
     '''
 
     RAND = 42
-    KEYS = ('data', 'target')
-    
-    def __init__(self, rand=RAND, test_size=0.2):
-        self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
-        self.rand = rand
-        self.test_size = test_size
 
-    def predict(self, img, dataset, test=False):
+    def __init__(self, dataset, size=None, rand=RAND):
+        self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
+        self.encoder = LabelEncoder()
+        self.X = dataset['X']
+        self.y = self._labels(dataset)
+        self.size = size or max(self.X.attrs['orig_shape'])
+        self.rand = rand
+
+    def __call__(self, img):
         '''
-        Accepts an image (as binary array) the dataset to perform a prediction.
-        If test flag is true predict versus the test dataset.
-        >>> clf.predict(array([[[1., 0., 0., 0.],...]]), 
-        >>>             {'data': array([[[1., 0., 1., 0.],...]]},
-        >>>             test=True),
+        Classify the specified image (path or binary data) versus the dataset:
+        >>> clf()
         '''
-        self._fit(*self._X_y(dataset, test))
-        logger.info('predicting on dataset')
-        return self.model.predict([img.flatten()])
-    
-    def _fit(self, X, y):
+        img = self._img(img)
         logger.info('fitting on dataset')
-        self.model.fit(X, y)
-    
-    def _X_y(self, dataset, test):
-        logger.info('splitting training set')
-        X, X_t, y, y_t = train_test_split(dataset['data'], dataset['target'], 
-                                          random_state=self.rand, 
-                                          test_size=self.test_size)
-        return (X_t, y_t) if test else (X, y)
+        self.model.fit(self.X, self.y)
+        res = self.model.predict([img])
+        return self.encoder.inverse_transform(res)
+
+    def _img(self, img):
+        if self._valid(img): return img
+        logger.info('fetching data by %s', path.basename(img))
+        norm = Normalizer(self.size)
+        norm.persist(img)
+        return plt.imread(img).flatten()
+
+    def _valid(self, img):
+        return hasattr(img, 'shape') and img.shape == self.X[0].shape
+
+    def _labels(self, dataset):
+        self.encoder.fit(dataset['y'])
+        return self.encoder.transform(dataset['y'])

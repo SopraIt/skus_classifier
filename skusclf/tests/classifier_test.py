@@ -1,22 +1,26 @@
 import unittest
+from warnings import filterwarnings
 from skusclf import classifier, stubs, training
 
 
 class TestClassifier(unittest.TestCase):
     def setUp(self):
-        self.dataset = training.Loader.open(stubs.DATASET)
+        self.ds = training.Dataset(f'{stubs.PATH}/dataset.h5').load()
+        filterwarnings('ignore')
 
-    def test_prediction_training(self):
-        mod = classifier.Model()
-        for i, img in enumerate(self.dataset['data']):
-            res = mod.predict(img, self.dataset)
-            self.assertEqual(res[0], self.dataset['target'][i])
+    def tearDown(self):
+        self.ds.close()
 
-    def test_prediction_test(self):
-        mod = classifier.Model()
-        for i, img in enumerate(self.dataset['data']):
-            res = mod.predict(img, self.dataset, test=True)
-            self.assertEqual(res[0], self.dataset['target'][i])
+    def test_attributes(self):
+        mod = classifier.Model(self.ds)
+        self.assertEqual(mod.size, 64) 
+        for i in range(0, 3):
+            self.assertIn(i, list(mod.y))
+
+    def test_prediction(self):
+        mod = classifier.Model(self.ds)
+        res = mod(self.ds['X'][-1])
+        self.assertEqual(res[0], self.ds['y'][-1])
 
 
 if __name__ == '__main__':

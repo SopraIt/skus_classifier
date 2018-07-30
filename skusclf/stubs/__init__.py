@@ -1,5 +1,5 @@
 from glob import glob
 
-PATH = 'skusclf/stubs/images'
-IMAGES = glob(f'{PATH}/*')
-DATASET = f'skusclf/stubs/dataset.pkl.gz'
+PATH = 'skusclf/stubs'
+FOLDER = f'{PATH}/images'
+IMAGES = glob(f'{FOLDER}/*.png')

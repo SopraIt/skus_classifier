@@ -9,6 +9,7 @@
 * [Classifier](#classifier)
 * [APIs](#apis)
   * [Dataset creation](#dataset-creation)
+  * [Classification](#classification)
   * [Warning](#warning)
 
 
@@ -42,7 +43,7 @@ A total of about two hundreds (200) images are created for each single one, by a
 
 ### Loader
 A loader is responsible to load images from the specified folder, normalize them and augment the dataset.
-At the end of the process a gzipped pickled file is created, to let the dataset being consumable by further classifications.
+At the end of the process a compressed [HDF5](https://www.h5py.org/) file is created, allowing other programs to consume it easily.
 
 ## Classifier
 The classifier program relies on [scikit-learn](http://scikit-learn.org/stable/index.html) Stochastic Gradient Descent (SGD) model.  
@@ -52,36 +53,62 @@ well and is pretty fast.
 The dataset can also be fed by others models, such as more advanced neural network based on the [Tensorflow](https://www.tensorflow.org/) framework.
 
 ## APIs
-The only interface currently available is a CLI program that can be invoked this way:
-```shell
-$ python classify.py -h
-usage: classify.py [-h] [-d DATASET] -i IMG [-s SIZE] [-a [1-200]] [-t TEST]
-                   [-l {debug,info,warning,error,critical}]
+The interface to the existing programs are exposed by CLI:
 
-Classify the images basing on a specific supervised model
+### Dataset creation
+This program creates a brand new dataset by sequentially applying the actions previously described on the images fetched by the file system:
+
+```shell
+$ python cli_dataset.py -h
+usage: cli_dataset.py [-h] [-f FOLDER] [-s SIZE] [-i LIMIT] [-a [1-200]]
+                      [-b BKG] [-l {debug,info,warning,error,critical}]
+
+Create a dataset by normalizing and augmenting the images fetched from
+specified source
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d DATASET, --dataset DATASET
-                        runs classification on the specified dataset (fetch
-                        the first *.pkl.gz available)
-  -i IMG, --img IMG     the path to the PNG image to classify
-  -s SIZE, --size SIZE  the max size (default to 256) used to normalize the
-                        dataset (if none is available)
+  -f FOLDER, --folder FOLDER
+                        the folder containing the PNG files, default to
+                        ./images
+  -s SIZE, --size SIZE  the max size in pixels used to normalize the dataset,
+                        default to 64
+  -i LIMIT, --limit LIMIT
+                        limit the number of images read from disk, default to
+                        unlimited
   -a [1-200], --augment [1-200]
-                        augment each image by this limit (min 1, max 200,
-                        default 200)
-  -t TEST, --test TEST  runs classification versus the test dataset (default
-                        to False)
+                        apply the specified number of transformations to each
+                        image, max 200
+  -b BKG, --bkg BKG     an optional path to an image to be applied as a
+                        background before normalization
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```
 
-### Dataset creation
-The program assumes a dataset is already present on disk, if it is not, it takes care to create a brand new one by sequentially applying the actions previously described.
+#### Warning
+Dataset creation can be memory angry in case you have thousands of images (which you'll augment accordingly), causing memory swapping and occasional crashes.
 
-### Warning
-Dataset creation can be memory angry in case you have thousands of images, causing frequent swapping and occasional crashes.
-In such case you will have two options:
-1. reduce the number of images
-2. reduce the number of augmentations (default to 200 per image)
+In such scenario you have the following options:
+1. reduce the size of the normalized image (`-s` option)
+2. reduce the number of images fetched from disk (`-n` option)
+3. reduce the number of augmentations (`-a` option)
+
+### Classification
+This program accepts a path to the image to classify against the previously created dataset by returning the predicted label:
+
+```shell
+$ python cli_classifier.py -h
+usage: cli_classifier.py [-h] -d DATASET -i IMG
+                         [-l {debug,info,warning,error,critical}]
+
+Classify the specified image versus the previously created dataset
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DATASET, --dataset DATASET
+                        runs classification on the specified dataset
+                        (previously created)
+  -i IMG, --img IMG     the path to the PNG image to classify
+  -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
+                        the loglevel, default to error
+```

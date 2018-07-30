@@ -7,4 +7,4 @@ __pycache__/
 .venv/
 **/.DS_Store
 *.png
-*.pkl.gz
+*.h5
