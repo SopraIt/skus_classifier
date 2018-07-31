@@ -46,7 +46,8 @@ class TestTraining(unittest.TestCase):
 
     def test_empty_dataset_error(self):
         with self.assertRaises(training.Dataset.EmptyFolderError):
-            training.Dataset(f'./log/dataset.h5', folder='./log')
+            ds = training.Dataset(f'./log/dataset.h5', folder='./log')
+            ds()
 
     def test_shaped_dataset(self):
         ds = training.Dataset(f'{stubs.PATH}/shaped.h5', folder=stubs.FOLDER,

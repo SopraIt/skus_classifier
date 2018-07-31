@@ -299,6 +299,7 @@ class Dataset:
         '''
         Save the dataset in the HDF5 format and returns a tuple of collected (X,y) data.
         '''
+        self._check()
         logger.info('persisting dataset %s', self.name)
         self._normalize()
         img = plt.imread(self.images[0]) if self.images else None
@@ -312,6 +313,10 @@ class Dataset:
             X_ds.attrs['orig_shape'] = img.shape
             hf.create_dataset(name='y', data=y, shape=y.shape)
             logger.info('dataset created successfully')
+
+    def _check(self):
+        if not len(self.images):
+            raise self.EmptyFolderError(f'{self.folder} contains no valid images')
     
     def _collect(self, shape):
         logger.info('collecting data from %s', self.folder)
@@ -337,8 +342,6 @@ class Dataset:
         images = sorted(glob(f'{self.folder}/*.{self.EXT}'))
         if limit:
             images = images[:limit] 
-        if not images:
-            raise self.EmptyFolderError(f'{self.folder} contains no valid images')
         return images
 
     def _normalize(self):
