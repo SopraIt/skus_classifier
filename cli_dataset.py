@@ -12,7 +12,7 @@ class CLI:
     A plain CLI wrapper over the training.Dataset class.
     '''
 
-    DESC = 'Create a dataset by normalizing and augmenting the images fetched from specified source'
+    DESC = 'Create a HDF5 dataset on current path by normalizing and augmenting the images fetched from specified source'
     PREFIX = './dataset'
     EXT = '.h5'
 
@@ -25,7 +25,7 @@ class CLI:
         print(f'Creating dataset {name}')
         self._loglevel()
         ds = training.Dataset(name, folder=self.opts.folder, limit=self.opts.max,
-                              augmenter=training.Augmenter(self.opts.augment),
+                              augmenter=training.Augmenter(self.opts.cutoff),
                               normalizer=training.Normalizer(self.opts.size, bkg=self.opts.bkg)) 
         ds()
 
@@ -44,15 +44,16 @@ class CLI:
                             help=f'the folder containing the PNG files, default to {training.Dataset.FOLDER}')
         parser.add_argument('-s', '--size',
                             default=training.Normalizer.SIZE,
+                            type=int,
                             help=f'the max size in pixels used to normalize the dataset, default to {training.Normalizer.SIZE}')
         parser.add_argument('-m', '--max',
                             default=training.Dataset.LIMIT,
+                            type=int,
                             help='limit the number of images read from disk, default to unlimited')
-        parser.add_argument('-a', '--augment',
-                            default=training.Augmenter.LIMIT,
-                            choices=range(1, training.Augmenter.LIMIT+1),
-                            metavar=f'[1-{training.Augmenter.LIMIT}]',
-                            help=f'apply the specified number of transformations to each image, max {training.Augmenter.LIMIT}')
+        parser.add_argument('-c', '--cutoff',
+                            default=training.Augmenter.CUTOFF,
+                            type=float,
+                            help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (all transformations, about 200 per image)')
         parser.add_argument('-b', '--bkg',
                             help='an optional path to an image to be applied as a background before normalization')
         parser.add_argument('-l', '--loglevel',

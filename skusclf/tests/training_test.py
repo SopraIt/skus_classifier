@@ -26,22 +26,34 @@ class TestTraining(unittest.TestCase):
         norm = training.Normalizer(size=max(img.shape))
         res = norm(stubs.IMAGES[-1])
         self.assertIsNone(res)
+
+    def test_augmenting_attributes(self):
+        aug = training.Augmenter()
+        self.assertEqual(len(aug.transformers), 7)
+        self.assertEqual(aug.count, 211)
     
-    def test_data_augmenting(self):
+    def test_augmenting(self):
         img = imread(stubs.IMAGES[-1])
-        aug = training.Augmenter(3)
-        output = list(aug(img))
-        self.assertEqual(len(output), 3)
-        self.assertTrue(all(img.shape == (64, 64, 4) for img in output))
+        aug = training.Augmenter(.05)
+        self.assertEqual(aug.count, 11)
+        self.assertTrue(all(img.shape == (64, 64, 4) for img in list(aug(img))))
+
+    def test_dataset_attributes(self):
+        ds = training.Dataset(f'{stubs.PATH}/dataset.h5', folder=stubs.FOLDER,
+                              persist=False)
+        self.assertEqual(len(ds.images), 3)
+        self.assertEqual(ds.count, 633)
+        self.assertEqual(ds.img.shape, (64, 64, 4))
+        self.assertEqual(ds.label_dtype, 'S17')
 
     def test_dataset(self):
         ds = training.Dataset(f'{stubs.PATH}/dataset.h5', folder=stubs.FOLDER,
-                              augmenter=training.Augmenter(3))
+                              persist=False, augmenter=training.Augmenter(.01))
         ds()
         dataset = ds.load()
-        self.assertEqual(dataset['X'].shape, (9, 16384))
-        self.assertEqual(tuple(dataset['X'].attrs['orig_shape']), (64, 64, 4))
-        self.assertEqual(dataset['y'].shape, (9,))
+        self.assertEqual(dataset['X'].shape, (24, 16384))
+        self.assertEqual(dataset['X'].attrs['size'], 64)
+        self.assertEqual(dataset['y'].shape, (24,))
         dataset.close()
 
     def test_empty_dataset_error(self):
@@ -51,7 +63,8 @@ class TestTraining(unittest.TestCase):
 
     def test_shaped_dataset(self):
         ds = training.Dataset(f'{stubs.PATH}/shaped.h5', folder=stubs.FOLDER,
-                              shape=(4, 64, 64), augmenter=None, normalizer=None)
+                              persist=False, shape=(4, 64, 64), 
+                              augmenter=None, normalizer=None)
         ds()
         dataset = ds.load()
         self.assertEqual(dataset['X'].shape, (3, 4, 64, 64))

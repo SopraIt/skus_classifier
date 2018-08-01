@@ -1,4 +1,5 @@
 from glob import glob
+from math import floor
 from os import path
 from matplotlib import pyplot as plt
 from PIL import Image
@@ -127,25 +128,38 @@ class Augmenter:
 
     Arguments
     ---------
-    - limit: limit the number of transformations, default to no limit (about 200)
+    - cutoff: a float value indicating the cutoff percentage of the transformations 
+      to be applied to the original image; i.e a value of 0.5 will cut transformations 
+      to half (1.0=all by default); a minimum of one transformation per type is 
+      guaranteed, thus at least 7+1 images (transformers + original) are yielded.
 
     Constructor
     -----------
-    >>> aug = Augmenter(50)
+    >>> aug = Augmenter(0.75)
     '''
 
-    LIMIT = 200
+    CUTOFF = 1.
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
+    BLUR = range(1, 21, 1)
+    GAMMA = np.arange(.2, 8.2, .2)
+    FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
+    NOISE = np.arange(.04, .804, .04)
+    SCALE = np.arange(1.1, 4.1, .1)
+    ROTATE = range(12, 360, 6)
+    RANGES = (BLUR, GAMMA, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
-    def __init__(self, limit=LIMIT):
-        self.limit = int(limit)
-    
+    def __init__(self, cutoff=CUTOFF):
+        self.cutoff = float(cutoff)
+        self.transformers = sorted(t for t in dir(self) if t.startswith('_tr'))
+        self.ranges = [self._cut(r) for r in self.RANGES]
+        self.count = sum(len(r) for r in self.ranges) + 1
+
     def __call__(self, img):
         '''
         Synopsis
         --------
-        Returns a generator with original image and all of its transformations:
+        Returns a generator with original image and all of applied  transformations.
 
         Arguments
         ---------
@@ -153,85 +167,49 @@ class Augmenter:
 
         >>> output = aug.images()
         '''
-        self.count = 1
-        self.img = img
-        self.size = img.shape[0]
-        yield self.img
-        transformers = (t for t in dir(self) if t.startswith('_tr'))
-        for t in transformers:
+        yield img
+        logger.info('applying a set of %d transformations', self.count)
+        for r, t in zip(self.ranges, self.transformers):
             _m = getattr(self, t)
-            yield from _m()
+            for a in r:
+                yield from _m(img, a)
+
+    def _cut(self, r):
+        if self.cutoff >= 1: return r
+        cut = floor(len(r) * self.cutoff) or 1
+        return r[:cut]
     
-    def _check(self):
-        if not self.limit:
-            return True
-        if self.count < self.limit:
-            self.count += 1
-            return True
+    def _tr_blur(self, img, axe):
+        logger.info('blurring at the center with axe %d', axe)
+        yield uniform_filter(img, size=(axe, axe, 1))
 
-    def _tr_rescale(self):
-        logger.info('applying rescaling')
-        for _s in np.arange(1.1, 4.1, .1):
-            logger.debug('rescaling by %.2f', _s)
-            _data = rescale(self.img, _s, mode=self.RESCALE_MODE, 
-                            anti_aliasing=True, multichannel=True)
-            _start = _data.shape[0]//2-(self.size//2)
-            _end = _start+self.size
-            _data = _data[_start:_end,_start:_end]
-            if not self._check(): break
-            yield _data
+    def _tr_contrast(self, img, rng):
+        logger.debug('augmenting contrast by range %.2f', rng)
+        yield rescale_intensity(img, in_range=(.0, rng))
 
-    def _tr_noise(self):
-        logger.info('applying random noise')
-        for _v in np.arange(.04, .8, .04):
-            logger.debug('applying %s noise by %.2f', self.NOISE_MODE, _v)
-            _data = random_noise(self.img, mode=self.NOISE_MODE, var=_v)
-            if not self._check(): break
-            yield _data
+    def _tr_flip(self, img, sl):
+        logger.info('flipping by slice %r', sl)
+        yield img[sl]
 
-    def _tr_rotate(self):
-        logger.info('applying rotation')
-        for _a in range(5, 360, 5):
-            logger.debug('rotating CCW by %d', _a)
-            _data = rotate(self.img, _a)
-            if not self._check(): break
-            yield _data
+    def _tr_gamma(self, img, gm):
+        logger.debug('adjusting gamma by %.2f', gm)
+        yield adjust_gamma(img, gamma=gm, gain=.9)
 
-    def _tr_contrast(self):
-        logger.info('applying contrast')
-        for _max in np.arange(.2, 6., .2):
-            logger.debug('augmenting contrast by %.2f',_max)
-            _data = rescale_intensity(self.img, in_range=(.0, _max))
-            if not self._check(): break
-            yield _data
-    
-    def _tr_gamma(self):
-        logger.info('applying gamma adjust')
-        for _g in np.arange(.2, 6., .2):
-            logger.debug('adjusting gamma by %.2f', _g)
-            _data = adjust_gamma(self.img, gamma=_g, gain=.9)
-            if not self._check(): break
-            yield _data
-    
-    def _tr_blur(self):
-        logger.info('applying blurring')
-        for _b in range(1, 20, 1):
-            logger.debug('blurring at the center by %d', _b)
-            _data = uniform_filter(self.img, size=(_b, _b, 1))
-            if not self._check(): break
-            yield _data
+    def _tr_noise(self, img, var):
+        logger.debug('applying %s noise with variance %.2f', self.NOISE_MODE, var)
+        yield random_noise(img, mode=self.NOISE_MODE, var=var)
 
-    def _tr_flip_h(self):
-        logger.info('applying flip H')
-        _data = self.img[:, ::-1]
-        if self._check():
-            yield _data
+    def _tr_rescale(self, img, sc):
+        logger.debug('rescaling by %.2f', sc)
+        _size = max(img.shape)
+        _data = rescale(img, sc, mode=self.RESCALE_MODE, anti_aliasing=True, multichannel=True)
+        _start = _data.shape[0] // 2 - (_size // 2)
+        _end = _start + _size
+        yield _data[_start:_end,_start:_end]
 
-    def _tr_flip_v(self):
-        logger.info('applying flip V')
-        _data = self.img[::-1, :]
-        if self._check():
-            yield _data
+    def _tr_rotate(self, img, ang):
+        logger.debug('rotating CCW by %d', ang)
+        yield rotate(img, ang)
 
 
 class Dataset:
@@ -280,7 +258,7 @@ class Dataset:
                  augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))
-        self.count = len(self.images) * (augmenter.limit if augmenter else 1)
+        self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = name
         self.shape = shape
         self.fetcher = fetcher
@@ -288,12 +266,14 @@ class Dataset:
         self.normalizer = normalizer
         self.augmenter = augmenter
 
-    def load(self):
-        '''
-        Loads the stored HDF5 dataset (if any) and returns it
-        '''
-        if path.isfile(self.name):
-            return h5py.File(self.name, 'r')
+    @property
+    def img(self):
+        return plt.imread(self.images[0])
+
+    @property
+    def label_dtype(self):
+        sku = self.fetcher(self.images[0])
+        return f'S{len(sku)}'
     
     def __call__(self):
         '''
@@ -302,17 +282,23 @@ class Dataset:
         self._check()
         logger.info('persisting dataset %s', self.name)
         self._normalize()
-        img = plt.imread(self.images[0]) if self.images else None
         with h5py.File(self.name, 'w') as hf:
-            X, y = self._collect(self.shape or img.flatten().shape)
+            X, y = self._collect(self.shape or self.img.flatten().shape)
             logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
             X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
                                      dtype=np.float32, 
                                      compression=self.COMPRESSION[0], 
                                      compression_opts=self.COMPRESSION[1])
-            X_ds.attrs['orig_shape'] = img.shape
+            X_ds.attrs['size'] = max(self.img.shape)
             hf.create_dataset(name='y', data=y, shape=y.shape)
             logger.info('dataset created successfully')
+
+    def load(self):
+        '''
+        Loads the stored HDF5 dataset (if any) and returns it
+        '''
+        if path.isfile(self.name):
+            return h5py.File(self.name, 'r')
 
     def _check(self):
         if not len(self.images):
@@ -321,7 +307,7 @@ class Dataset:
     def _collect(self, shape):
         logger.info('collecting data from %s', self.folder)
         X = np.empty((self.count,) + shape, dtype=np.float32)
-        y = np.empty((self.count,), dtype='S17')
+        y = np.empty((self.count,), dtype=self.label_dtype)
         i = 0
         for name in self.images:
             sku = self.fetcher(name)

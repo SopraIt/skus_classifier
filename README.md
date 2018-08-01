@@ -60,11 +60,11 @@ This program creates a brand new dataset by sequentially applying the actions pr
 
 ```shell
 $ python cli_dataset.py -h
-usage: cli_dataset.py [-h] [-f FOLDER] [-s SIZE] [-i LIMIT] [-a [1-200]]
-                      [-b BKG] [-l {debug,info,warning,error,critical}]
+usage: cli_dataset.py [-h] [-f FOLDER] [-s SIZE] [-m MAX] [-c CUTOFF] [-b BKG]
+                      [-l {debug,info,warning,error,critical}]
 
-Create a dataset by normalizing and augmenting the images fetched from
-specified source
+Create a HDF5 dataset on current path by normalizing and augmenting the images
+fetched from specified source
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -73,12 +73,12 @@ optional arguments:
                         ./images
   -s SIZE, --size SIZE  the max size in pixels used to normalize the dataset,
                         default to 64
-  -i LIMIT, --limit LIMIT
-                        limit the number of images read from disk, default to
+  -m MAX, --max MAX     limit the number of images read from disk, default to
                         unlimited
-  -a [1-200], --augment [1-200]
-                        apply the specified number of transformations to each
-                        image, max 200
+  -c CUTOFF, --cutoff CUTOFF
+                        a float value indicating the cutoff percentage of the
+                        transformations to be applied, default to 1.0 (all
+                        transformations, about 200 per image)
   -b BKG, --bkg BKG     an optional path to an image to be applied as a
                         background before normalization
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
