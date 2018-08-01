@@ -43,18 +43,20 @@ class Model:
     def __call__(self, img):
         '''
         Classify the specified image (path or binary data) versus the dataset:
-        >>> clf()
+        >>> clf('./images/elvis.png')
         '''
         img = self._img(img)
         logger.info('fitting on dataset')
         self.model.fit(self.X, self.y)
         logger.info('making prediction via %s', self.model.__class__.__name__)
         res = self.model.predict([img])
-        return self.encoder.inverse_transform(res)
+        label = self.encoder.inverse_transform(res)[0].decode('utf-8')
+        logger.info('image classified as %s', label)
+        return label
 
     def _img(self, img):
         if self._valid_data(img): return img
-        logger.info('fetching data by %s', path.basename(img))
+        logger.info('fetching image data: %s', path.basename(img))
         self.normalizer.persist(img)
         return plt.imread(img).flatten()
 

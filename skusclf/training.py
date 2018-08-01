@@ -157,15 +157,9 @@ class Augmenter:
 
     def __call__(self, img):
         '''
-        Synopsis
-        --------
-        Returns a generator with original image and all of applied  transformations.
-
-        Arguments
-        ---------
-        - img: a numpy.ndarray representing the image to transform
-
-        >>> output = aug.images()
+        Accepts and image as binary data and yield a generator (to be consumed within a loop)
+        with the original image and all of applied  transformations.
+        >>> transformations = aug(array[...])
         '''
         yield img
         logger.info('applying a set of %d transformations', self.count)

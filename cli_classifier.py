@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
+from os import path
 from sys import argv
 import logging
+from warnings import filterwarnings
 from skusclf import classifier, training
 from skusclf.logger import BASE as logger
 
@@ -15,16 +17,17 @@ class CLI:
     DESC = 'Classify the specified image versus the previously created dataset'
 
     def __init__(self, args=argv[1:]):
+        filterwarnings('ignore')
         self.args = args
         self.opts = self._parser().parse_args(self.args)
 
     def classify(self):
-        print(f'Calssifying {self.opts.img}')
+        print(f'Calssifying {path.basename(self.opts.img)}')
         self._loglevel()
         dataset = self._dataset()
         mod = classifier.Model(dataset)
-        res = mod(self.opts.img)
-        print(f'Classified as: {res!r}')
+        sku = mod(self.opts.img)
+        print(f'Classified as: {sku}')
 
     def _dataset(self):
         return training.Dataset(name=self.opts.dataset).load()

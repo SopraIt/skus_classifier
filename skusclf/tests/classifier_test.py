@@ -20,7 +20,7 @@ class TestClassifier(unittest.TestCase):
     def test_prediction(self):
         mod = classifier.Model(self.ds)
         res = mod(self.ds['X'][-1])
-        self.assertEqual(res[0], self.ds['y'][-1])
+        self.assertEqual(res, self.ds['y'][-1].decode('utf-8'))
 
 
 if __name__ == '__main__':
