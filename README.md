@@ -78,8 +78,10 @@ optional arguments:
                         a float value indicating the cutoff percentage of the
                         transformations to be applied, default to 0.5 (about
                         100 transformations per image)
-  -b BKG, --bkg BKG     an optional path to an image to be applied as a
-                        background before normalization
+  -b BKG, --bkg BKG     mandatory for images with different sizes, if
+                        specified, apply a squared canvas as a background,
+                        transparent if truthy, an image if a path to an
+                        existing file is specified, default to false
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```

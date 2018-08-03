@@ -18,25 +18,27 @@ class Normalizer:
     --------
     Normalizes the images that compose the training set by:
     - resizing the largest dimension to specified max size
-    - creating a squared canvas by max size and pasting the image into it
+    - optionally creating a squared canvas by max size and pasting the image into it
 
     Arguments
     ---------
     - size: the size of the target image
-    - bkg: the path to the background image to be used as canvas (default to transparent image)
+    - canvas: a flag indicating if a squared transparent canvas must be applied 
+      behind the image, can be a path to a background image to be used
 
     Constructor
     -----------
-    >>> norm = Normalizer(size=128, bkg='./office.jpg')
+    >>> norm = Normalizer(size=128, canvas='./office.jpg')
     '''
 
     SIZE = 32
-    MODE = 'RGBA'
     COLOR = (255, 0, 0, 0)
+    CANVAS = False
     
-    def __init__(self, size=SIZE, bkg=None):
+    def __init__(self, size=SIZE, canvas=CANVAS):
         self.size = int(size)
-        self.bkg = bkg
+        self.canvas = canvas
+        self.bkg = path.isfile(str(canvas))
 
     def __call__(self, name):
         '''
@@ -47,22 +49,27 @@ class Normalizer:
         logger.info('hopping image by creating a squared canvas')
         img = self._resize(name)
         if not img: return
-        return self._canvas(img.convert(self.MODE))
+        return self._canvas(img)
 
-    def to_array(self, name):
+    def to_array(self, name, shape=None):
         '''
         Normalizes the provided image path and returns a properly reshaped 
-        binary array. 
-        >>> norm.to_array('./images/elvis.png')
+        binary array, cropping and converting color if the provided shape differs:. 
+        >>> norm.to_array('./images/elvis.png', shape=(64, 41, 4))
         array[...]
         '''
         logger.info('transforming %s to binary data', path.basename(name))
         img = self(name)
+        if not shape: return np.array(img)
+        if shape[-1] > 3:
+           img = img.convert('RGBA')
+        if img.size != (shape[1], shape[0]):
+            img = img.crop((0, 0, shape[1], shape[0]))
         return np.array(img)
 
     def bulk(self, images):
         '''
-        Accepts a list of images paths and replace eaach one with the normalized version:
+        Accepts a list of images paths and replace each one with the normalized version:
         >>> norm.bulk(['./images/elvis.png',...])
         '''
         for name in images:
@@ -84,21 +91,23 @@ class Normalizer:
     def _resize(self, name):
         img = Image.open(name)
         w, h = img.size
-        if self._skip(w, h): return
-        ratio = max(w, h) / self.size
+        _max = max(w, h)
+        if self._skip(_max): return
+        ratio = _max / self.size
         size = (int(w // ratio), int(h // ratio))
-        logger.debug('resizing image to %r', size)
+        logger.info('resizing image to %r', size)
         return img.resize(size)
 
-    def _skip(self, w, h):
-        return not self.bkg and w == self.size and h == self.size
+    def _skip(self, max_size):
+        return not self.bkg and max_size == self.size
 
     def _canvas(self, img):
+        if not self.canvas: return img
         size = (self.size, self.size)
         offset = self._offset(img)
-        if self.bkg and path.isfile(str(self.bkg)):
-            logger.info('applpying background %s', path.basename(self.bkg))
-            c = Image.open(self.bkg).convert(self.MODE)
+        if self.bkg:
+            logger.info('applying background %s', path.basename(self.canvas))
+            c = Image.open(self.canvas).convert(img.mode)
             _min = min(c.size)
             c = c.crop((0, 0, _min, _min))
             c = c.resize(size)
@@ -125,7 +134,7 @@ class Augmenter:
     - adjusting contrast
     - adjusting gamma colors
     - blurring
-    - flipping (horizontally and vertically)
+    - flipping (horizontally and vertically), when the image is squared
 
     The transofrmers methods are collected bu iterating on attributes starting with 
     the prefix '_tr': be aware of that when extending this class.
@@ -186,7 +195,7 @@ class Augmenter:
         yield rescale_intensity(img, in_range=(.0, rng))
 
     def _tr_flip(self, img, sl):
-        logger.info('flipping by slice %r', sl)
+        logger.info('flipping by slicing')
         yield img[sl]
 
     def _tr_gamma(self, img, gm):
@@ -199,11 +208,12 @@ class Augmenter:
 
     def _tr_rescale(self, img, sc):
         logger.debug('rescaling by %.2f', sc)
-        _size = max(img.shape)
         _data = rescale(img, sc, mode=self.RESCALE_MODE, anti_aliasing=True, multichannel=True)
-        _start = _data.shape[0] // 2 - (_size // 2)
-        _end = _start + _size
-        yield _data[_start:_end,_start:_end]
+        h, w, _ = _data.shape
+        y, x, _ = img.shape
+        cx = w // 2 - (x // 2)
+        cy = h // 2 - (y // 2)
+        yield _data[cy:cy+y, cx:cx+x, :]
 
     def _tr_rotate(self, img, ang):
         logger.debug('rotating CCW by %d', ang)
@@ -226,8 +236,6 @@ class Dataset:
     - fetcher: a callable taking as an argument the filename and returning the
       formatted label
     - name: the name of the persisted HDF5 file
-    - shape: the shape to store the images data with, default to the one of the 
-      first image loaded, accordingly flattened
     - normalizer: a collaborator used to normalize the images within the folder,
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
@@ -241,7 +249,6 @@ class Dataset:
     '''
 
     FOLDER = './images'
-    EXT = 'png'
     LIMIT = 0
     FETCHER_G = lambda n: '_'.join(path.basename(n).split('_')[:3])
     FETCHER_MM = lambda n: path.basename(n).split('-')[0]
@@ -253,22 +260,17 @@ class Dataset:
         '''
 
     def __init__(self, name, folder=FOLDER, limit=LIMIT,
-                 shape=None, fetcher=FETCHER_MM, persist=False,
+                 fetcher=FETCHER_MM, persist=False,
                  augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = name
-        self.shape = shape
         self.fetcher = fetcher
         self.persist = persist
         self.normalizer = normalizer
         self.augmenter = augmenter
         self.labels_count = 0
-
-    @property
-    def img(self):
-        return plt.imread(self.images[0])
 
     @property
     def label_dtype(self):
@@ -282,14 +284,18 @@ class Dataset:
         self._check()
         logger.info('persisting dataset %s', self.name)
         self._normalize()
+        _img = plt.imread(self.images[0])
         with h5py.File(self.name, 'w') as hf:
-            X, y = self._collect(self.shape or self.img.flatten().shape)
+            X, y = self._collect(_img)
             logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
             X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
                                      dtype=np.float32, 
                                      compression=self.COMPRESSION[0], 
                                      compression_opts=self.COMPRESSION[1])
-            X_ds.attrs['size'] = max(self.img.shape)
+            h, w, c = _img.shape
+            X_ds.attrs['h'] = h
+            X_ds.attrs['w'] = w
+            X_ds.attrs['c'] = c
             hf.create_dataset(name='y', data=y, shape=y.shape)
             self.labels_count = len(np.unique(y))
             logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
@@ -305,8 +311,9 @@ class Dataset:
         if not len(self.images):
             raise self.EmptyFolderError(f'{self.folder} contains no valid images')
     
-    def _collect(self, shape):
+    def _collect(self, img):
         logger.info('collecting data from %s', self.folder)
+        shape = img.flatten().shape
         X = np.empty((self.count,) + shape, dtype=np.float32)
         y = np.empty((self.count,), dtype=self.label_dtype)
         i = 0
@@ -315,7 +322,7 @@ class Dataset:
             img = plt.imread(name)
             logger.info('working on image %s', path.basename(name))
             for n, aug in enumerate(self._augmenting(img)):
-                X[i, ...] = aug.reshape(self.shape) if self.shape else aug.flatten()
+                X[i, ...] = aug.flatten()
                 y[i, ...] = sku
                 self._persist(name, n, aug)
                 i += 1
@@ -326,7 +333,7 @@ class Dataset:
         return X[indexes], y[indexes]
 
     def _images(self, limit):
-        images = sorted(glob(f'{self.folder}/*.{self.EXT}'))
+        images = sorted(glob(f'{self.folder}/*'))
         if limit:
             images = images[:limit] 
         return images

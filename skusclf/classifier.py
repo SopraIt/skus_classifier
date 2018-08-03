@@ -5,7 +5,7 @@ from skusclf.logger import BASE as logger
 from skusclf.training import Normalizer
 
 
-class Model:
+class SGD:
     '''
     Synopsis
     --------
@@ -15,7 +15,7 @@ class Model:
     Arguments
     ---------
     - dataset: a dict like object having the 'X' and 'y' keys
-    - size: the max size used to normalize the image to classify, try to fetch it
+    - shape: the shape used to normalize the image to classify, try to fetch it
       from dataset meta-attributes if not specified
     - rand: the random seed used by classifier
     - normalizer: the collaborator used to normalize the image to classify
@@ -30,14 +30,15 @@ class Model:
     '''
 
     RAND = 42
+    KEYS = ('h', 'w', 'c')
 
-    def __init__(self, dataset, size=None, rand=RAND, normalizer=Normalizer):
+    def __init__(self, dataset, shape=None, rand=RAND, normalizer=Normalizer):
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
         self.encoder = LabelEncoder()
         self.X = dataset['X']
         self.y = self._labels(dataset)
-        self.size = size or self.X.attrs['size']
-        self.normalizer = normalizer(self.size)
+        self.shape = shape or self._shape()
+        self.normalizer = normalizer(max(self.shape), canvas=self._canvas())
 
     def __call__(self, name):
         '''
@@ -52,11 +53,16 @@ class Model:
         label = self.encoder.inverse_transform(res)[0].decode('utf-8')
         logger.info('image classified as %s', label)
         return label
+    
+    def _canvas(self):
+        h, w, _ = self.shape
+        return h == w
+
+    def _shape(self):
+        return tuple(self.X.attrs[k] for k in self.KEYS)
 
     def _img(self, name):
-        img = self.normalizer.to_array(name)
-        shape = self.X[0].shape
-        return img if len(shape) > 1 else img.flatten()
+        return self.normalizer.to_array(name, self.shape).flatten()
 
     def _labels(self, dataset):
         logger.info('transforming labels')

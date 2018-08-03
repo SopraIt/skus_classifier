@@ -11,7 +11,7 @@ class CLI:
     '''
     Synopsis
     --------
-    A plain CLI wrapper over the classifier.Model class.
+    A plain CLI wrapper over the classifier.SGD class.
     '''
 
     DESC = 'Classify the specified image versus the previously created dataset'
@@ -25,7 +25,7 @@ class CLI:
         print(f'Calssifying {path.basename(self.opts.img)}')
         self._loglevel()
         dataset = self._dataset()
-        mod = classifier.Model(dataset)
+        mod = classifier.SGD(dataset)
         sku = mod(self.opts.img)
         print(f'Classified as: {sku}')
 

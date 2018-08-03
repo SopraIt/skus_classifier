@@ -26,10 +26,15 @@ class CLI:
         self._loglevel()
         ds = training.Dataset(name, folder=self.opts.folder, limit=self.opts.max,
                               augmenter=training.Augmenter(self.opts.cutoff),
-                              normalizer=training.Normalizer(self.opts.size, bkg=self.opts.bkg)) 
+                              normalizer=training.Normalizer(self.opts.size, canvas=self.canvas)) 
         ds()
         print(f'Dataset created with {ds.count} features and {ds.labels_count} labels')
+    
+    @property
+    def canvas(self):
+        return False if self.opts.bkg == 'False' else self.opts.bkg
 
+    
     def _name(self):
         size = self.opts.size
         return f'{self.PREFIX}_{size}x{size}{self.EXT}'
@@ -56,7 +61,8 @@ class CLI:
                             type=float,
                             help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (about 100 transformations per image)')
         parser.add_argument('-b', '--bkg',
-                            help='an optional path to an image to be applied as a background before normalization')
+                            default=training.Normalizer.CANVAS,
+                            help='mandatory for images with different sizes, if specified, apply a squared canvas as a background, transparent if truthy, an image if a path to an existing file is specified, default to false')
         parser.add_argument('-l', '--loglevel',
                             default='error',
                             choices=('debug', 'info', 'warning', 'error', 'critical'),
