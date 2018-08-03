@@ -20,12 +20,11 @@ This is a machine learning (ML) project aimed to classify SKUs basing on the cat
 The whole system is a supervised classifier: the catalog images, associated by related SKU code, compose the training set.
 
 ## Dataset
-The system is aimed to work with images of different sizes, saved as transparent PNG files.
+The system is aimed to work with images of different sizes, saved as PNG or JPG files (supporting RGBA conversion).
 
 ### Normalizer
 In order to allow the classifier working properly, all of the images are normalized by:
 - resizing them to the specified max size (default to 256 pixels)
-- quantizing the PNG to reduce the number of features
 - applying a squared, transparent canvas and centering the image on it, thus avoiding
   any deformation
 
@@ -69,16 +68,16 @@ fetched from specified source
 optional arguments:
   -h, --help            show this help message and exit
   -f FOLDER, --folder FOLDER
-                        the folder containing the PNG files, default to
+                        the folder containing the image files, default to
                         ./images
   -s SIZE, --size SIZE  the max size in pixels used to normalize the dataset,
-                        default to 64
+                        default to 32
   -m MAX, --max MAX     limit the number of images read from disk, default to
                         unlimited
   -c CUTOFF, --cutoff CUTOFF
                         a float value indicating the cutoff percentage of the
-                        transformations to be applied, default to 1.0 (all
-                        transformations, about 200 per image)
+                        transformations to be applied, default to 0.5 (about
+                        100 transformations per image)
   -b BKG, --bkg BKG     an optional path to an image to be applied as a
                         background before normalization
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
@@ -108,7 +107,7 @@ optional arguments:
   -d DATASET, --dataset DATASET
                         runs classification on the specified dataset
                         (previously created)
-  -i IMG, --img IMG     the path to the PNG image to classify
+  -i IMG, --img IMG     the path to the image to classify
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```

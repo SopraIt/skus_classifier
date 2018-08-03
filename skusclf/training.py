@@ -19,34 +19,51 @@ class Normalizer:
     Normalizes the images that compose the training set by:
     - resizing the largest dimension to specified max size
     - creating a squared canvas by max size and pasting the image into it
-    - optimizing the image (quantize for PNG)
 
     Arguments
     ---------
     - size: the size of the target image
-    - optimize: a flag used to optimize the PNG file
-    - mode: the color mode
-    - bkg: the path tp the background image to be used as canvas (default to transparent)
+    - bkg: the path to the background image to be used as canvas (default to transparent image)
 
     Constructor
     -----------
-    >>> norm = Normalizer(size=400, optimize=False, mode='RGBA', bkg='./office.jpg')
+    >>> norm = Normalizer(size=128, bkg='./office.jpg')
     '''
 
-    SIZE = 64
+    SIZE = 32
     MODE = 'RGBA'
     COLOR = (255, 0, 0, 0)
     
-    def __init__(self, size=SIZE, optimize=True, mode=MODE, bkg=None):
+    def __init__(self, size=SIZE, bkg=None):
         self.size = int(size)
-        self.optimize = optimize
-        self.mode = mode
         self.bkg = bkg
+
+    def __call__(self, name):
+        '''
+        Normalize the source image (path) by resizing and pasting it within
+        a squared canvas.
+        >>> norm('./images/elvis.png')
+        '''
+        logger.info('hopping image by creating a squared canvas')
+        img = self._resize(name)
+        if not img: return
+        return self._canvas(img.convert(self.MODE))
+
+    def to_array(self, name):
+        '''
+        Normalizes the provided image path and returns a properly reshaped 
+        binary array. 
+        >>> norm.to_array('./images/elvis.png')
+        array[...]
+        '''
+        logger.info('transforming %s to binary data', path.basename(name))
+        img = self(name)
+        return np.array(img)
 
     def bulk(self, images):
         '''
         Accepts a list of images paths and replace eaach one with the normalized version:
-        >>> norm.bulk('./my_images')
+        >>> norm.bulk(['./images/elvis.png',...])
         '''
         for name in images:
             self.persist(name)
@@ -64,19 +81,6 @@ class Normalizer:
         if not img: return
         img.save(target)
 
-    def __call__(self, name):
-        '''
-        Creates a squared canvas, by pasting image and optimizing it
-        '''
-        logger.info('hopping image by creating a squared canvas')
-        img = self._resize(name)
-        if not img: return
-        canvas = self._canvas(img.convert(self.mode))
-        if self.optimize:
-            logger.debug('optmizing image')
-            return canvas.quantize()
-        return canvas
-    
     def _resize(self, name):
         img = Image.open(name)
         w, h = img.size
@@ -94,13 +98,13 @@ class Normalizer:
         offset = self._offset(img)
         if self.bkg and path.isfile(str(self.bkg)):
             logger.info('applpying background %s', path.basename(self.bkg))
-            c = Image.open(self.bkg).convert(self.mode)
+            c = Image.open(self.bkg).convert(self.MODE)
             _min = min(c.size)
             c = c.crop((0, 0, _min, _min))
             c = c.resize(size)
             c.paste(img, offset, img)
         else:
-            c = Image.new(self.mode, size, self.COLOR)
+            c = Image.new(img.mode, size, self.COLOR)
             c.paste(img, offset)
         return c
 
@@ -138,7 +142,7 @@ class Augmenter:
     >>> aug = Augmenter(0.75)
     '''
 
-    CUTOFF = 1.
+    CUTOFF = 0.5
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
     BLUR = range(1, 21, 1)
@@ -259,6 +263,7 @@ class Dataset:
         self.persist = persist
         self.normalizer = normalizer
         self.augmenter = augmenter
+        self.labels_count = 0
 
     @property
     def img(self):
@@ -268,7 +273,7 @@ class Dataset:
     def label_dtype(self):
         sku = self.fetcher(self.images[0])
         return f'S{len(sku)}'
-    
+
     def __call__(self):
         '''
         Save the dataset in the HDF5 format and returns a tuple of collected (X,y) data.
@@ -285,7 +290,8 @@ class Dataset:
                                      compression_opts=self.COMPRESSION[1])
             X_ds.attrs['size'] = max(self.img.shape)
             hf.create_dataset(name='y', data=y, shape=y.shape)
-            logger.info('dataset created successfully')
+            self.labels_count = len(np.unique(y))
+            logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
 
     def load(self):
         '''

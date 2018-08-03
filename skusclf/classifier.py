@@ -1,5 +1,4 @@
 from os import path
-from matplotlib import pyplot as plt
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
 from skusclf.logger import BASE as logger
@@ -40,12 +39,12 @@ class Model:
         self.size = size or self.X.attrs['size']
         self.normalizer = normalizer(self.size)
 
-    def __call__(self, img):
+    def __call__(self, name):
         '''
         Classify the specified image (path or binary data) versus the dataset:
         >>> clf('./images/elvis.png')
         '''
-        img = self._img(img)
+        img = self._img(name)
         logger.info('fitting on dataset')
         self.model.fit(self.X, self.y)
         logger.info('making prediction via %s', self.model.__class__.__name__)
@@ -54,14 +53,10 @@ class Model:
         logger.info('image classified as %s', label)
         return label
 
-    def _img(self, img):
-        if self._valid_data(img): return img
-        logger.info('fetching image data: %s', path.basename(img))
-        self.normalizer.persist(img)
-        return plt.imread(img).flatten()
-
-    def _valid_data(self, img):
-        return hasattr(img, 'shape') and img.shape == self.X[0].shape
+    def _img(self, name):
+        img = self.normalizer.to_array(name)
+        shape = self.X[0].shape
+        return img if len(shape) > 1 else img.flatten()
 
     def _labels(self, dataset):
         logger.info('transforming labels')

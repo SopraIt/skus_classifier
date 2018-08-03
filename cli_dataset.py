@@ -28,6 +28,7 @@ class CLI:
                               augmenter=training.Augmenter(self.opts.cutoff),
                               normalizer=training.Normalizer(self.opts.size, bkg=self.opts.bkg)) 
         ds()
+        print(f'Dataset created with {ds.count} features and {ds.labels_count} labels')
 
     def _name(self):
         size = self.opts.size
@@ -41,7 +42,7 @@ class CLI:
         parser = ArgumentParser(description=self.DESC)
         parser.add_argument('-f', '--folder',
                             default=training.Dataset.FOLDER,
-                            help=f'the folder containing the PNG files, default to {training.Dataset.FOLDER}')
+                            help=f'the folder containing the image files, default to {training.Dataset.FOLDER}')
         parser.add_argument('-s', '--size',
                             default=training.Normalizer.SIZE,
                             type=int,
@@ -53,7 +54,7 @@ class CLI:
         parser.add_argument('-c', '--cutoff',
                             default=training.Augmenter.CUTOFF,
                             type=float,
-                            help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (all transformations, about 200 per image)')
+                            help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (about 100 transformations per image)')
         parser.add_argument('-b', '--bkg',
                             help='an optional path to an image to be applied as a background before normalization')
         parser.add_argument('-l', '--loglevel',
