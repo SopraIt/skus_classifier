@@ -243,7 +243,8 @@ class Dataset:
     FOLDER = './images'
     EXT = 'png'
     LIMIT = 0
-    FETCHER = lambda n: '_'.join(path.basename(n).split('_')[:3])
+    FETCHER_G = lambda n: '_'.join(path.basename(n).split('_')[:3])
+    FETCHER_MM = lambda n: path.basename(n).split('-')[0]
     COMPRESSION = ('gzip', 9)
 
     class EmptyFolderError(ValueError):
@@ -252,7 +253,7 @@ class Dataset:
         '''
 
     def __init__(self, name, folder=FOLDER, limit=LIMIT,
-                 shape=None, fetcher=FETCHER, persist=False,
+                 shape=None, fetcher=FETCHER_MM, persist=False,
                  augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))

@@ -6,8 +6,10 @@ from skusclf import classifier, stubs, training
 class TestClassifier(unittest.TestCase):
     def setUp(self):
         filterwarnings('ignore')
+        fetcher = training.Dataset.FETCHER_G
         ds = training.Dataset(f'{stubs.PATH}/dataset.h5', folder=stubs.FOLDER,
-                              persist=False, augmenter=training.Augmenter(.1))
+                              fetcher=fetcher, persist=False, 
+                              augmenter=training.Augmenter(.1))
         ds()
         self.data = ds.load()
 

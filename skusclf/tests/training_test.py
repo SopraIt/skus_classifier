@@ -4,6 +4,9 @@ from skusclf import stubs, training
 
 
 class TestTraining(unittest.TestCase):
+    def setUp(self):
+        self.fetcher = training.Dataset.FETCHER_G
+
     def test_normalization(self):
         norm = training.Normalizer(size=64)
         img = norm(stubs.IMAGES[0])
@@ -45,7 +48,7 @@ class TestTraining(unittest.TestCase):
 
     def test_dataset_attributes(self):
         ds = training.Dataset(f'{stubs.PATH}/dataset.h5', folder=stubs.FOLDER,
-                              persist=False)
+                              fetcher=self.fetcher, persist=False)
         self.assertEqual(len(ds.images), 3)
         self.assertEqual(ds.count, 318)
         self.assertEqual(ds.img.shape, (32, 32, 4))
@@ -53,7 +56,8 @@ class TestTraining(unittest.TestCase):
 
     def test_dataset(self):
         ds = training.Dataset(f'{stubs.PATH}/dataset.h5', folder=stubs.FOLDER,
-                              persist=False, augmenter=training.Augmenter(.01))
+                              fetcher=self.fetcher, persist=False, 
+                              augmenter=training.Augmenter(.01))
         ds()
         dataset = ds.load()
         self.assertEqual(dataset['X'].shape, (24, 4096))
@@ -69,7 +73,7 @@ class TestTraining(unittest.TestCase):
 
     def test_shaped_dataset(self):
         ds = training.Dataset(f'{stubs.PATH}/shaped.h5', folder=stubs.FOLDER,
-                              persist=False, shape=(4, 32, 32), 
+                              fetcher=self.fetcher, persist=False, shape=(4, 32, 32), 
                               augmenter=None, normalizer=None)
         ds()
         dataset = ds.load()
