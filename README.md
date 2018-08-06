@@ -60,6 +60,7 @@ This program creates a brand new dataset by sequentially applying the actions pr
 ```shell
 $ python cli_dataset.py -h
 usage: cli_dataset.py [-h] [-f FOLDER] [-s SIZE] [-m MAX] [-c CUTOFF] [-b BKG]
+                      [--brand {mm,gg}]
                       [-l {debug,info,warning,error,critical}]
 
 Create a HDF5 dataset on current path by normalizing and augmenting the images
@@ -82,6 +83,8 @@ optional arguments:
                         specified, apply a squared canvas as a background,
                         transparent if truthy, an image if a path to an
                         existing file is specified, default to false
+  --brand {mm,gg}       specify how to fetch labels from filenames, default to
+                        MaxMara
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```

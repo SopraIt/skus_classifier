@@ -24,8 +24,8 @@ class CLI:
         name = self._name()
         print(f'Creating dataset {name}')
         self._loglevel()
-        ds = training.Dataset(name, folder=self.opts.folder, limit=self.opts.max,
-                              augmenter=training.Augmenter(self.opts.cutoff),
+        ds = training.Dataset(name, folder=self.opts.folder, brand=self.opts.brand, 
+                              limit=self.opts.max, augmenter=training.Augmenter(self.opts.cutoff),
                               normalizer=training.Normalizer(self.opts.size, canvas=self.canvas)) 
         ds()
         print(f'Dataset created with {ds.count} features and {ds.labels_count} labels')
@@ -37,7 +37,7 @@ class CLI:
     
     def _name(self):
         size = self.opts.size
-        return f'{self.PREFIX}_{size}x{size}{self.EXT}'
+        return f'{self.PREFIX}_{self.opts.brand.upper()}_{size}x{size}{self.EXT}'
 
     def _loglevel(self):
         loglevel = getattr(logging, self.opts.loglevel.upper())
@@ -63,6 +63,10 @@ class CLI:
         parser.add_argument('-b', '--bkg',
                             default=training.Normalizer.CANVAS,
                             help='mandatory for images with different sizes, if specified, apply a squared canvas as a background, transparent if truthy, an image if a path to an existing file is specified, default to false')
+        parser.add_argument('--brand',
+                            default=training.Dataset.BRANDS[0],
+                            choices=training.Dataset.BRANDS,
+                            help='specify how to fetch labels from filenames, default to MaxMara')
         parser.add_argument('-l', '--loglevel',
                             default='error',
                             choices=('debug', 'info', 'warning', 'error', 'critical'),

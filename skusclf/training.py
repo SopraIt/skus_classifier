@@ -231,22 +231,25 @@ class Dataset:
 
     FOLDER = './images'
     LIMIT = 0
-    FETCHER_G = lambda n: '_'.join(path.basename(n).split('_')[:3])
-    FETCHER_MM = lambda n: path.basename(n).split('-')[0]
     COMPRESSION = ('gzip', 9)
+    BRANDS = ('mm', 'gg')
+    FETCHERS = {
+        BRANDS[0]: lambda n: path.basename(n).split('-')[0],
+        BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
+    }
 
     class EmptyFolderError(ValueError):
         '''
         Indicates if the specified folder contains no images to created the dataset with
         '''
 
-    def __init__(self, name, folder=FOLDER, limit=LIMIT, fetcher=FETCHER_MM, 
+    def __init__(self, name, folder=FOLDER, limit=LIMIT, brand=BRANDS[0], 
                  augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = name
-        self.fetcher = fetcher
+        self.fetcher = self.FETCHERS[brand]
         self.normalizer = normalizer
         self.augmenter = augmenter
         self.sample = self._sample()

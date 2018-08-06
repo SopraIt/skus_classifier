@@ -6,9 +6,8 @@ from skusclf import classifier, stubs, training
 class TestClassifier(unittest.TestCase):
     def setUp(self):
         filterwarnings('ignore')
-        fetcher = training.Dataset.FETCHER_G
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              fetcher=fetcher, 
+                              brand='gg', 
                               normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.2))
         ds()

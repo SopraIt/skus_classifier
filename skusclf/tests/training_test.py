@@ -4,9 +4,6 @@ from skusclf import stubs, training
 
 
 class TestTraining(unittest.TestCase):
-    def setUp(self):
-        self.fetcher = training.Dataset.FETCHER_G
-
     def test_normalization_plain(self):
         norm = training.Normalizer(size=64)
         img = norm(stubs.IMG)
@@ -60,16 +57,15 @@ class TestTraining(unittest.TestCase):
             self.assertEqual(img.shape, a.shape)
 
     def test_dataset_attributes(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              fetcher=self.fetcher)
+        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER)
         self.assertEqual(len(ds.images), 3)
         self.assertEqual(ds.count, 318)
         self.assertEqual(ds.sample.shape, (16, 32, 4))
-        self.assertEqual(ds.label_dtype, 'S17')
+        self.assertEqual(ds.label_dtype, 'S40')
 
     def test_dataset(self):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              fetcher=self.fetcher, 
+                              brand='gg', 
                               normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.01))
         ds()
