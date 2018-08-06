@@ -30,7 +30,6 @@ class SGD:
     '''
 
     RAND = 42
-    KEYS = ('h', 'w', 'c')
 
     def __init__(self, dataset, shape=None, rand=RAND, normalizer=Normalizer):
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
@@ -38,7 +37,7 @@ class SGD:
         self.X = dataset['X']
         self.y = self._labels(dataset)
         self.shape = shape or self._shape()
-        self.normalizer = normalizer(max(self.shape), canvas=self._canvas())
+        self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
 
     def __call__(self, name):
         '''
@@ -59,7 +58,7 @@ class SGD:
         return h == w
 
     def _shape(self):
-        return tuple(self.X.attrs[k] for k in self.KEYS)
+        return tuple(self.X.attrs['shape'].tolist())
 
     def _img(self, name):
         return self.normalizer.to_array(name, self.shape).flatten()

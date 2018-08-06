@@ -34,6 +34,7 @@ class Normalizer:
     SIZE = 32
     COLOR = (255, 0, 0, 0)
     CANVAS = False
+    MASK = 'RGBA'
     
     def __init__(self, size=SIZE, canvas=CANVAS):
         self.size = int(size)
@@ -42,11 +43,11 @@ class Normalizer:
 
     def __call__(self, name):
         '''
-        Normalize the source image (path) by resizing and pasting it within
-        a squared canvas.
+        Normalize the source image (path) by resizing and (optionally) pasting it 
+        within a squared canvas:
         >>> norm('./images/elvis.png')
         '''
-        logger.info('hopping image by creating a squared canvas')
+        logger.info('normalizing image %s', name)
         img = self._resize(name)
         if not img: return
         return self._canvas(img)
@@ -54,39 +55,22 @@ class Normalizer:
     def to_array(self, name, shape=None):
         '''
         Normalizes the provided image path and returns a properly reshaped 
-        binary array, cropping and converting color if the provided shape differs:. 
+        binary array, cropping and converting color if the provided shape differs:
         >>> norm.to_array('./images/elvis.png', shape=(64, 41, 4))
         array[...]
         '''
         logger.info('transforming %s to binary data', path.basename(name))
         img = self(name)
-        if not shape: return np.array(img)
-        if shape[-1] > 3:
-           img = img.convert('RGBA')
-        if img.size != (shape[1], shape[0]):
-            img = img.crop((0, 0, shape[1], shape[0]))
+        if not shape:
+            return np.array(img)
+        h, w, c = shape
+        if c > 3:
+            logger.info('converting to %s', self.MASK)
+            img = img.convert(self.MASK)
+        if img.size != (w, h):
+            logger.info('correcting size to (%d, %d)', w, h)
+            img = img.resize((w, h))
         return np.array(img)
-
-    def bulk(self, images):
-        '''
-        Accepts a list of images paths and replace each one with the normalized version:
-        >>> norm.bulk(['./images/elvis.png',...])
-        '''
-        for name in images:
-            self.persist(name)
-        return len(images)
-
-    def persist(self, src, target=None):
-        '''
-        Accepts the path of the source image and the target name to save the normalized version.
-        If no target is provided, the source image is normalized and replaced.
-        >>> norm.persist('./images/elvis.png', './images/the_king.png')
-        '''
-        target = target or src
-        logger.info('saving file: %s', target)
-        img = self(src)
-        if not img: return
-        img.save(target)
 
     def _resize(self, name):
         img = Image.open(name)
@@ -108,10 +92,8 @@ class Normalizer:
         if self.bkg:
             logger.info('applying background %s', path.basename(self.canvas))
             c = Image.open(self.canvas).convert(img.mode)
-            _min = min(c.size)
-            c = c.crop((0, 0, _min, _min))
             c = c.resize(size)
-            c.paste(img, offset, img)
+            c.paste(img, offset, img.convert(self.MASK))
         else:
             c = Image.new(img.mode, size, self.COLOR)
             c.paste(img, offset)
@@ -240,7 +222,6 @@ class Dataset:
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
       if falsey no augmentation is performed
-    - persist: a flag indicating if augmented images must be persisted to disk
 
     Constructor
     -----------
@@ -259,17 +240,16 @@ class Dataset:
         Indicates if the specified folder contains no images to created the dataset with
         '''
 
-    def __init__(self, name, folder=FOLDER, limit=LIMIT,
-                 fetcher=FETCHER_MM, persist=False,
+    def __init__(self, name, folder=FOLDER, limit=LIMIT, fetcher=FETCHER_MM, 
                  augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = name
         self.fetcher = fetcher
-        self.persist = persist
         self.normalizer = normalizer
         self.augmenter = augmenter
+        self.sample = self._sample()
         self.labels_count = 0
 
     @property
@@ -283,19 +263,14 @@ class Dataset:
         '''
         self._check()
         logger.info('persisting dataset %s', self.name)
-        self._normalize()
-        _img = plt.imread(self.images[0])
         with h5py.File(self.name, 'w') as hf:
-            X, y = self._collect(_img)
+            X, y = self._collect()
             logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
             X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
                                      dtype=np.float32, 
                                      compression=self.COMPRESSION[0], 
                                      compression_opts=self.COMPRESSION[1])
-            h, w, c = _img.shape
-            X_ds.attrs['h'] = h
-            X_ds.attrs['w'] = w
-            X_ds.attrs['c'] = c
+            X_ds.attrs['shape'] = self.sample.shape
             hf.create_dataset(name='y', data=y, shape=y.shape)
             self.labels_count = len(np.unique(y))
             logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
@@ -307,24 +282,28 @@ class Dataset:
         if path.isfile(self.name):
             return h5py.File(self.name, 'r')
 
+    def _sample(self):
+        if self.images:
+            name = self.images[0]
+            if self.normalizer:
+                return np.array(self.normalizer(name))
+            return plt.imread(name)
+
     def _check(self):
         if not len(self.images):
             raise self.EmptyFolderError(f'{self.folder} contains no valid images')
     
-    def _collect(self, img):
+    def _collect(self):
         logger.info('collecting data from %s', self.folder)
-        shape = img.flatten().shape
-        X = np.empty((self.count,) + shape, dtype=np.float32)
+        X = np.empty((self.count,) + self.sample.flatten().shape, dtype=np.float32)
         y = np.empty((self.count,), dtype=self.label_dtype)
         i = 0
-        for name in self.images:
+        for name, img in self._images_data():
             sku = self.fetcher(name)
-            img = plt.imread(name)
             logger.info('working on image %s', path.basename(name))
             for n, aug in enumerate(self._augmenting(img)):
                 X[i, ...] = aug.flatten()
                 y[i, ...] = sku
-                self._persist(name, n, aug)
                 i += 1
         return self._shuffle(X, y)
 
@@ -338,21 +317,14 @@ class Dataset:
             images = images[:limit] 
         return images
 
-    def _normalize(self):
-        if self.normalizer:
-            logger.info('normalizing %d images', len(self.images))
-            self.normalizer.bulk(self.images)
+    def _images_data(self):
+        for name in self.images:
+            if self.normalizer:
+                yield name, np.array(self.normalizer(name))
+            else:
+                yield name, plt.imread(name)
 
     def _augmenting(self, img):
         if not self.augmenter:
             return [img]
         return self.augmenter(img)
-    
-    def _persist(self, name, n, img):
-        if self.persist and n > 0:
-            basename = path.basename(name)
-            suffixed = basename.replace('.', f'_{n:03d}.')
-            name = path.join(self.folder, suffixed)
-            if not path.isfile(name):
-                logger.info('perisisting %s', name)
-                plt.imsave(name, img)

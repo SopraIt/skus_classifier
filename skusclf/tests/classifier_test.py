@@ -8,7 +8,8 @@ class TestClassifier(unittest.TestCase):
         filterwarnings('ignore')
         fetcher = training.Dataset.FETCHER_G
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              fetcher=fetcher, persist=False, 
+                              fetcher=fetcher, 
+                              normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.1))
         ds()
         self.data = ds.load()
@@ -22,7 +23,7 @@ class TestClassifier(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn(i, list(mod.y))
 
-    def test_png_prediction(self):
+    def test_prediction(self):
         mod = classifier.SGD(self.data)
         res = mod(f'{stubs.PATH}/bag.png')
         self.assertEqual(res, '400249_CXZFD_5278')
