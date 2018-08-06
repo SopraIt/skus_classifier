@@ -10,7 +10,7 @@ class TestClassifier(unittest.TestCase):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
                               fetcher=fetcher, 
                               normalizer=training.Normalizer(canvas=True),
-                              augmenter=training.Augmenter(.1))
+                              augmenter=training.Augmenter(.2))
         ds()
         self.data = ds.load()
 
@@ -19,7 +19,7 @@ class TestClassifier(unittest.TestCase):
 
     def test_attributes(self):
         mod = classifier.SGD(self.data)
-        self.assertEqual(mod.shape, (32, 32, 4)) 
+        self.assertEqual(mod.shape, [32, 32, 4]) 
         for i in range(0, 3):
             self.assertIn(i, list(mod.y))
 

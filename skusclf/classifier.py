@@ -36,7 +36,7 @@ class SGD:
         self.encoder = LabelEncoder()
         self.X = dataset['X']
         self.y = self._labels(dataset)
-        self.shape = shape or self._shape()
+        self.shape = shape or self.X.attrs['shape'].tolist()
         self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
 
     def __call__(self, name):
@@ -56,9 +56,6 @@ class SGD:
     def _canvas(self):
         h, w, _ = self.shape
         return h == w
-
-    def _shape(self):
-        return tuple(self.X.attrs['shape'].tolist())
 
     def _img(self, name):
         return self.normalizer.to_array(name, self.shape).flatten()
