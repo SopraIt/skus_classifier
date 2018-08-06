@@ -8,9 +8,10 @@
   * [Loader](#loader)
 * [Classifier](#classifier)
 * [APIs](#apis)
-  * [Dataset creation](#dataset-creation)
-  * [Classification](#classification)
-  * [Warning](#warning)
+  * [Console](#console)
+  * [CLI](#cli)
+    * [Dataset creation](#dataset-creation)
+    * [Prediction](#prediction)
 
 
 ## Scope
@@ -54,7 +55,29 @@ The dataset can also be fed by others models, such as more advanced neural netwo
 ## APIs
 The interface to the existing programs are exposed by CLI:
 
-### Dataset creation
+### Console
+To import the created dataset within your Jupyter/ipython console, just type the following snippets:
+```python
+from matplotlib import pyplot as plt
+from skusclf import training as tr
+
+ds = tr.Dataset('./dataset_MM_256x256.h5')
+data = ds.load()
+
+# you need to split manaully the dataset in test, validation and training
+X = data['X']
+y = data['y']
+
+# in case you need to display an image with its original shape, it is stored within the 'X' dataset
+shape = data['X'].attrs['shape'].tolist()
+img = data['X'][0].reshape(shape)
+plt.imshow(img)
+```
+
+### CLI
+The library comes with two CLI interfaces:
+
+#### Dataset creation
 This program creates a brand new dataset by sequentially applying the actions previously described on the images fetched by the file system:
 
 ```shell
@@ -89,7 +112,7 @@ optional arguments:
                         the loglevel, default to error
 ```
 
-#### Warning
+##### Warning
 Dataset creation can be memory angry in case you have thousands of images (which you'll augment accordingly), causing memory swapping and occasional crashes.
 
 In such scenario you have the following options:
@@ -97,7 +120,7 @@ In such scenario you have the following options:
 2. reduce the number of images fetched from disk (`-n` option)
 3. reduce the number of augmentations (`-a` option)
 
-### Classification
+#### Prediction
 This program accepts a path to the image to classify against the previously created dataset by returning the predicted label:
 
 ```shell
