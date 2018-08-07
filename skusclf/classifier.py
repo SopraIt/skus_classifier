@@ -58,7 +58,7 @@ class SGD:
         return h == w
 
     def _img(self, name):
-        return self.normalizer.to_array(name, self.shape).flatten()
+        return self.normalizer.adjust(name, self.shape).flatten()
 
     def _labels(self, dataset):
         logger.info('transforming labels')

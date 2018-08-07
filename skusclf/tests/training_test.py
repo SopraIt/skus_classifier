@@ -28,14 +28,14 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 64)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalized_array(self):
+    def test_adjust_array(self):
         norm = training.Normalizer(size=32)
-        img = norm.to_array(stubs.IMG)
+        img = norm.adjust(stubs.IMG)
         self.assertEqual(img.shape, (21, 32, 3))
 
-    def test_normalized_shaped_array(self):
+    def test_adjust_shaped_array(self):
         norm = training.Normalizer(size=64)
-        img = norm.to_array(stubs.IMG, (41, 64, 4))
+        img = norm.adjust(stubs.IMG, (41, 64, 4))
         self.assertEqual(img.shape, (41, 64, 4))
 
     def test_normalization_skip(self):

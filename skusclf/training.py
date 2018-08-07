@@ -53,11 +53,11 @@ class Normalizer:
         if not img: return
         return self._canvas(img)
 
-    def to_array(self, name, shape=None):
+    def adjust(self, name, shape=None):
         '''
         Normalizes the provided image path and returns a properly reshaped 
         binary array, cropping and converting color if the provided shape differs:
-        >>> norm.to_array('./images/elvis.png', shape=(64, 41, 4))
+        >>> norm.adjust('./images/elvis.png', shape=(64, 41, 4))
         array[...]
         '''
         logger.info('transforming %s to binary data', path.basename(name))
