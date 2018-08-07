@@ -1,4 +1,3 @@
-from os import path
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
 from skusclf.logger import BASE as logger
@@ -30,6 +29,7 @@ class SGD:
     '''
 
     RAND = 42
+    RATIO= 0.2
 
     def __init__(self, dataset, shape=None, rand=RAND, normalizer=Normalizer):
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
@@ -39,14 +39,17 @@ class SGD:
         self.shape = shape or self.X.attrs['shape'].tolist()
         self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
 
-    def __call__(self, name):
+    def __call__(self, name, X=None, y=None):
         '''
-        Classify the specified image (path or binary data) versus the dataset:
+        Classify the specified image (path or binary data) versus the specified
+        training set and labels:
         >>> clf('./images/elvis.png')
         '''
+        X = self.X if X is None else X
+        y = self.y if y is None else y
         img = self._img(name)
         logger.info('fitting on dataset')
-        self.model.fit(self.X, self.y)
+        self.model.fit(X, y)
         logger.info('making prediction via %s', self.model.__class__.__name__)
         res = self.model.predict([img])
         label = self.encoder.inverse_transform(res)[0].decode('utf-8')
@@ -56,6 +59,11 @@ class SGD:
     def _canvas(self):
         h, w, _ = self.shape
         return h == w
+
+    def _split(self, ratio=RATIO):
+        count = self.y.shape[0]
+        idx = int(count * (1. - ratio))
+        return self.X[:idx], self.X[idx:], self.y[:idx], self.y[idx:]
 
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
