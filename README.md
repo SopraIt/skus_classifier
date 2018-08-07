@@ -32,7 +32,7 @@ In order to allow the classifier working properly, all of the images are normali
 ### Augmenter
 The used dataset has about 5/7 images per label: this greatly limit the efficiency of the classifier, so data augmentation has been performed on the whole dataset.
 
-A total of about two hundreds (200) images are created for each single one, by applying different transformations:
+The number of images is augmented by an order of magnitude by applying different transformations to the original one:
 - rescaling and cropping
 - adding random noise
 - rotating
@@ -101,7 +101,7 @@ optional arguments:
   -c CUTOFF, --cutoff CUTOFF
                         a float value indicating the cutoff percentage of the
                         transformations to be applied, default to 0.5 (about
-                        100 transformations per image)
+                        80 transformations per image)
   -b BKG, --bkg BKG     mandatory for images with different sizes, if
                         specified, apply a squared canvas as a background,
                         transparent if truthy, an image if a path to an

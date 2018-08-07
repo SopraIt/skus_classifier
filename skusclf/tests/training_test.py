@@ -46,7 +46,7 @@ class TestTraining(unittest.TestCase):
     def test_augmenting_attributes(self):
         aug = training.Augmenter(cutoff=1.)
         self.assertEqual(len(aug.transformers), 7)
-        self.assertEqual(aug.count, 211)
+        self.assertEqual(aug.count, 164)
     
     def test_augmenting(self):
         img = imread(stubs.IMG)
@@ -59,7 +59,7 @@ class TestTraining(unittest.TestCase):
     def test_dataset_attributes(self):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER)
         self.assertEqual(len(ds.images), 3)
-        self.assertEqual(ds.count, 318)
+        self.assertEqual(ds.count, 246)
         self.assertEqual(ds.sample.shape, (16, 32, 4))
         self.assertEqual(ds.label_dtype, 'S40')
 

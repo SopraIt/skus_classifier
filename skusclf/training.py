@@ -32,9 +32,10 @@ class Normalizer:
     '''
 
     SIZE = 32
-    COLOR = (255, 0, 0, 0)
+    TRANSPARENT = (255, 0, 0, 0)
+    WHITE = (255, 255, 255)
     CANVAS = False
-    MASK = 'RGBA'
+    RGBA = 'RGBA'
     
     def __init__(self, size=SIZE, canvas=CANVAS):
         self.size = int(size)
@@ -47,7 +48,7 @@ class Normalizer:
         within a squared canvas:
         >>> norm('./images/elvis.png')
         '''
-        logger.info('normalizing image %s', name)
+        logger.info('normalizing image %s', path.basename(name))
         img = self._resize(name)
         if not img: return
         return self._canvas(img)
@@ -65,8 +66,8 @@ class Normalizer:
             return np.array(img)
         h, w, c = shape
         if c > 3:
-            logger.info('converting to %s', self.MASK)
-            img = img.convert(self.MASK)
+            logger.info('converting to %s', self.RGBA)
+            img = img.convert(self.RGBA)
         if img.size != (w, h):
             logger.info('correcting size to (%d, %d)', w, h)
             img = img.resize((w, h))
@@ -93,11 +94,15 @@ class Normalizer:
             logger.info('applying background %s', path.basename(self.canvas))
             c = Image.open(self.canvas).convert(img.mode)
             c = c.resize(size)
-            c.paste(img, offset, img.convert(self.MASK))
+            c.paste(img, offset, img.convert(self.RGBA))
         else:
-            c = Image.new(img.mode, size, self.COLOR)
+            logger.info('applying squared canvas %r', size)
+            c = Image.new(img.mode, size, self._color(img))
             c.paste(img, offset)
         return c
+    
+    def _color(self, img):
+        return self.TRANSPARENT if img.mode == self.RGBA else self.WHITE
 
     def _offset(self, img):
         w, h = img.size
@@ -141,7 +146,7 @@ class Augmenter:
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
     NOISE = np.arange(.04, .804, .04)
     SCALE = np.arange(1.1, 4.1, .1)
-    ROTATE = range(12, 360, 6)
+    ROTATE = range(30, 360, 30)
     RANGES = (BLUR, GAMMA, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
@@ -198,8 +203,9 @@ class Augmenter:
         yield _data[cy:cy+y, cx:cx+x, :]
 
     def _tr_rotate(self, img, ang):
-        logger.debug('rotating CCW by %d', ang)
-        yield rotate(img, ang)
+        cval = 0 if img.shape[-1] > 3 else 1.
+        logger.debug('rotating CCW by %d with cval=%.2f', ang, cval)
+        yield rotate(img, ang, cval=cval)
 
 
 class Dataset:

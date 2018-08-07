@@ -9,7 +9,7 @@ class TestClassifier(unittest.TestCase):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
                               brand='gg', 
                               normalizer=training.Normalizer(canvas=True),
-                              augmenter=training.Augmenter(.2))
+                              augmenter=training.Augmenter(.3))
         ds()
         self.data = ds.load()
 
