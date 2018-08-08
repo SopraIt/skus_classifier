@@ -138,12 +138,12 @@ class Augmenter:
     >>> aug = Augmenter(0.75)
     '''
 
-    CUTOFF = 0.5
+    CUTOFF = 0
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
     BLUR = range(1, 21, 1)
-    GAMMA = np.arange(.2, 8.2, .2)
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
+    GAMMA = np.arange(.2, 8.2, .2)
     NOISE = np.arange(.04, .804, .04)
     SCALE = np.arange(1.1, 4.1, .1)
     ROTATE = range(30, 360, 30)
@@ -153,15 +153,17 @@ class Augmenter:
         self.cutoff = float(cutoff)
         self.transformers = sorted(t for t in dir(self) if t.startswith('_tr'))
         self.ranges = [self._cut(r) for r in self.RANGES]
-        self.count = sum(len(r) for r in self.ranges) + 1
+        self.count = 1 if not self.cutoff else sum(len(r) for r in self.ranges) + 1
 
     def __call__(self, img):
         '''
         Accepts and image as binary data and yield a generator (to be consumed within a loop)
         with the original image and all of applied  transformations.
+        Exit early if cutoff is zero.
         >>> transformations = aug(array[...])
         '''
         yield img
+        if not self.cutoff: return
         logger.info('applying a set of %d transformations', self.count)
         for r, t in zip(self.ranges, self.transformers):
             _m = getattr(self, t)
@@ -178,6 +180,7 @@ class Augmenter:
         yield uniform_filter(img, size=(axe, axe, 1))
 
     def _tr_contrast(self, img, rng):
+        if self._RGB(img): return
         logger.debug('augmenting contrast by range %.2f', rng)
         yield rescale_intensity(img, in_range=(.0, rng))
 
@@ -203,9 +206,12 @@ class Augmenter:
         yield _data[cy:cy+y, cx:cx+x, :]
 
     def _tr_rotate(self, img, ang):
-        cval = 0 if img.shape[-1] > 3 else 1.
+        cval = 1. if self._RGB(img) else 0
         logger.debug('rotating CCW by %d with cval=%.2f', ang, cval)
         yield rotate(img, ang, cval=cval)
+
+    def _RGB(self, img):
+        return img.shape[-1] == 3
 
 
 class Dataset:

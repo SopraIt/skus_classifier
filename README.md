@@ -100,8 +100,8 @@ optional arguments:
                         unlimited
   -c CUTOFF, --cutoff CUTOFF
                         a float value indicating the cutoff percentage of the
-                        transformations to be applied, default to 0.5 (about
-                        80 transformations per image)
+                        transformations to be applied, default to no
+                        transformations
   -b BKG, --bkg BKG     mandatory for images with different sizes, if
                         specified, apply a squared canvas as a background,
                         transparent if truthy, an image if a path to an

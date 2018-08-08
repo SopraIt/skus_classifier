@@ -13,7 +13,7 @@ class TestClassifier(unittest.TestCase):
                                                              augmenter=training.Augmenter(float(cutoff)))()
 
     def test_attributes(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         self.assertEqual(clf.shape, [32, 32, 4]) 
@@ -21,14 +21,14 @@ class TestClassifier(unittest.TestCase):
             self.assertIn(i, list(clf.y))
 
     def test_splitting(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, X_test, y_train, y_test = clf.split(0.3)
-        self.assertEqual(X_train.shape, (16, 4096))
-        self.assertEqual(X_test.shape, (8, 4096))
-        self.assertEqual(y_train.shape, (16,))
-        self.assertEqual(y_test.shape, (8,))
+        self.assertEqual(X_train.shape, (37, 4096))
+        self.assertEqual(X_test.shape, (17, 4096))
+        self.assertEqual(y_train.shape, (37,))
+        self.assertEqual(y_test.shape, (17,))
         self.assertFalse(clf.split(1.2))
 
     def test_prediction(self):
@@ -39,7 +39,7 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(res, '400249_CXZFD_5278')
 
     def test_accuracy(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, _, y_train, _ = clf.split(0.2)
@@ -48,7 +48,7 @@ class TestClassifier(unittest.TestCase):
             self.assertAlmostEqual(k, .9, delta=.4)
 
     def test_confusion(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, _, y_train, _ = clf.split(0.2)
@@ -57,7 +57,7 @@ class TestClassifier(unittest.TestCase):
             self.assertTrue(c > 3.5)
 
     def test_precision(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, _, y_train, _ = clf.split(0.2)
@@ -66,7 +66,7 @@ class TestClassifier(unittest.TestCase):
             self.assertAlmostEqual(k, .9, delta=.4)
 
     def test_recall(self):
-        ds = self.create_ds(0)
+        ds = self.create_ds(0.1)
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, _, y_train, _ = clf.split(0.2)

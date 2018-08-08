@@ -52,12 +52,20 @@ class TestTraining(unittest.TestCase):
         img = imread(stubs.IMG)
         aug = training.Augmenter(.05)
         images = list(aug(img))
-        self.assertEqual(aug.count, len(images))
+        self.assertEqual(len(images), 8)
         for a in images:
             self.assertEqual(img.shape, a.shape)
 
+    def test_augmenting_skip(self):
+        img = imread(stubs.IMG)
+        aug = training.Augmenter(0)
+        images = list(aug(img))
+        self.assertEqual(aug.count, 1)
+        self.assertEqual(len(images), 1)
+
     def test_dataset_attributes(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER)
+        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
+                              augmenter=training.Augmenter(.5))
         self.assertEqual(len(ds.images), 3)
         self.assertEqual(ds.count, 246)
         self.assertEqual(ds.sample.shape, (16, 32, 4))

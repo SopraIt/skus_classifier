@@ -121,3 +121,7 @@ class Evaluator:
     @property
     def recall(self):
         return recall_score(self.y, self.y_pred, average=None)
+
+    @property
+    def f1_score(self):
+        return f1_score(self.y, self.y_pred, average=None)
