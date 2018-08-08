@@ -1,4 +1,6 @@
 from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.preprocessing import LabelEncoder
 from skusclf.logger import BASE as logger
 from skusclf.training import Normalizer
@@ -19,17 +21,13 @@ class SGD:
     - rand: the random seed used by classifier
     - normalizer: the collaborator used to normalize the image to classify
 
-    Returns
-    -------
-    - the classified label
-
     Constructor
     -----------
     >>> clf = Classifier({'X': array[...], 'y': array[...]}, size=64, rand=666)
     '''
 
     RAND = 42
-    RATIO= 0.2
+    TEST_SIZE= 0.2
 
     def __init__(self, dataset, shape=None, rand=RAND, normalizer=Normalizer):
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
@@ -55,15 +53,20 @@ class SGD:
         label = self.encoder.inverse_transform(res)[0].decode('utf-8')
         logger.info('image classified as %s', label)
         return label
+
+    def split(self, test_size=TEST_SIZE):
+        '''
+        Split the dataset in training and test portions basing on the float representing test size
+        >>> clf.split(0.5)
+        '''
+        if float(test_size) > 1.: return
+        count = self.y.shape[0]
+        idx = int(count * (1. - test_size))
+        return self.X[:idx], self.X[idx:], self.y[:idx], self.y[idx:]
     
     def _canvas(self):
         h, w, _ = self.shape
         return h == w
-
-    def _split(self, ratio=RATIO):
-        count = self.y.shape[0]
-        idx = int(count * (1. - ratio))
-        return self.X[:idx], self.X[idx:], self.y[:idx], self.y[idx:]
 
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
@@ -72,3 +75,49 @@ class SGD:
         logger.info('transforming labels')
         self.encoder.fit(dataset['y'])
         return self.encoder.transform(dataset['y'])
+
+
+class Evaluator:
+    '''
+    Synopsis
+    --------
+    The class wraps different evaluation scikit-learn tools to evaluate performance
+    and accuracy of the specified classification model.
+
+    Arguments
+    ---------
+    - model: an estimator instance, responding to the 'fit' method
+    - X: the training dataset
+    - y: the labels dataset
+    - kflods: an integer indicating the cross validation splitting
+
+    Constructor
+    -----------
+    >>> evl = Evaluator(model=SGDClassifier(...), X=array[...], y=array[...], kfolds=3)
+    '''
+
+    KFOLDS = 3
+    SCORING = 'accuracy'
+    
+    def __init__(self, model, X, y, kfolds=KFOLDS):
+        self.model = model
+        self.X= X
+        self.y = y
+        self.kfolds = int(kfolds)
+        self.y_pred = cross_val_predict(self.model, self.X, self.y, cv=self.kfolds)
+
+    @property
+    def accuracy(self):
+        return cross_val_score(self.model, self.X, self.y, cv=self.kfolds, scoring=self.SCORING)
+
+    @property
+    def confusion(self):
+        return confusion_matrix(self.y, self.y_pred)
+
+    @property
+    def precision(self):
+        return precision_score(self.y, self.y_pred, average=None)
+
+    @property
+    def recall(self):
+        return recall_score(self.y, self.y_pred, average=None)

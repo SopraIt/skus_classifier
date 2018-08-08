@@ -6,26 +6,73 @@ from skusclf import classifier, stubs, training
 class TestClassifier(unittest.TestCase):
     def setUp(self):
         filterwarnings('ignore')
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              brand='gg', 
-                              normalizer=training.Normalizer(canvas=True),
-                              augmenter=training.Augmenter(.3))
-        ds()
-        self.data = ds.load()
-
-    def tearDown(self):
-        self.data.close()
+        self.create_ds = lambda cutoff=0.2: training.Dataset(stubs.DATASET, 
+                                                             folder=stubs.FOLDER, 
+                                                             brand='gg', 
+                                                             normalizer=training.Normalizer(canvas=True), 
+                                                             augmenter=training.Augmenter(float(cutoff)))()
 
     def test_attributes(self):
-        mod = classifier.SGD(self.data)
-        self.assertEqual(mod.shape, [32, 32, 4]) 
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        self.assertEqual(clf.shape, [32, 32, 4]) 
         for i in range(0, 3):
-            self.assertIn(i, list(mod.y))
+            self.assertIn(i, list(clf.y))
+
+    def test_splitting(self):
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        X_train, X_test, y_train, y_test = clf.split(0.3)
+        self.assertEqual(X_train.shape, (16, 4096))
+        self.assertEqual(X_test.shape, (8, 4096))
+        self.assertEqual(y_train.shape, (16,))
+        self.assertEqual(y_test.shape, (8,))
+        self.assertFalse(clf.split(1.2))
 
     def test_prediction(self):
-        mod = classifier.SGD(self.data)
-        res = mod(f'{stubs.PATH}/bag.png')
+        ds = self.create_ds(0.3)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        res = clf(f'{stubs.PATH}/bag.png')
         self.assertEqual(res, '400249_CXZFD_5278')
+
+    def test_accuracy(self):
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        X_train, _, y_train, _ = clf.split(0.2)
+        evl = classifier.Evaluator(clf.model, X_train, y_train)
+        for k in evl.accuracy:
+            self.assertAlmostEqual(k, .9, delta=.4)
+
+    def test_confusion(self):
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        X_train, _, y_train, _ = clf.split(0.2)
+        evl = classifier.Evaluator(clf.model, X_train, y_train)
+        for c in evl.confusion.diagonal():
+            self.assertTrue(c > 3.5)
+
+    def test_precision(self):
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        X_train, _, y_train, _ = clf.split(0.2)
+        evl = classifier.Evaluator(clf.model, X_train, y_train)
+        for k in evl.precision:
+            self.assertAlmostEqual(k, .9, delta=.4)
+
+    def test_recall(self):
+        ds = self.create_ds(0)
+        data = ds.load()
+        clf = classifier.SGD(data)
+        X_train, _, y_train, _ = clf.split(0.2)
+        evl = classifier.Evaluator(clf.model, X_train, y_train)
+        for k in evl.recall:
+            self.assertAlmostEqual(k, .9, delta=.4)
 
 
 if __name__ == '__main__':

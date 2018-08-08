@@ -283,6 +283,7 @@ class Dataset:
             hf.create_dataset(name='y', data=y, shape=y.shape)
             self.labels_count = len(np.unique(y))
             logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
+        return self
 
     def load(self):
         '''
