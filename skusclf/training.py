@@ -4,7 +4,7 @@ from os import path
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
-from skimage.exposure import adjust_gamma, rescale_intensity
+from skimage.exposure import adjust_gamma
 from skimage.transform import rescale, rotate
 from skimage.util import random_noise
 import h5py
@@ -143,11 +143,11 @@ class Augmenter:
     NOISE_MODE = 'speckle'
     BLUR = range(1, 21, 1)
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
-    GAMMA = np.arange(.2, 8.2, .2)
-    NOISE = np.arange(.04, .804, .04)
-    SCALE = np.arange(1.1, 4.1, .1)
-    ROTATE = range(30, 360, 30)
-    RANGES = (BLUR, GAMMA, FLIP, GAMMA, NOISE, SCALE, ROTATE)
+    GAMMA = np.arange(.1, 4., .1)
+    NOISE = np.arange(.005, .2, .005)
+    SCALE = np.arange(1.05, 3., .05)
+    ROTATE = range(-45, 45, 2)
+    RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
         self.cutoff = float(cutoff)
@@ -167,6 +167,7 @@ class Augmenter:
         logger.info('applying a set of %d transformations', self.count)
         for r, t in zip(self.ranges, self.transformers):
             _m = getattr(self, t)
+            logger.info(f'applying {t} {len(r)} times')
             for a in r:
                 yield from _m(img, a)
 
@@ -176,28 +177,18 @@ class Augmenter:
         return r[:cut]
     
     def _tr_blur(self, img, axe):
-        logger.info('blurring at the center with axe %d', axe)
         yield uniform_filter(img, size=(axe, axe, 1))
 
-    def _tr_contrast(self, img, rng):
-        if self._RGB(img): return
-        logger.debug('augmenting contrast by range %.2f', rng)
-        yield rescale_intensity(img, in_range=(.0, rng))
-
     def _tr_flip(self, img, sl):
-        logger.info('flipping by slicing')
         yield img[sl]
 
     def _tr_gamma(self, img, gm):
-        logger.debug('adjusting gamma by %.2f', gm)
         yield adjust_gamma(img, gamma=gm, gain=.9)
 
     def _tr_noise(self, img, var):
-        logger.debug('applying %s noise with variance %.2f', self.NOISE_MODE, var)
         yield random_noise(img, mode=self.NOISE_MODE, var=var)
 
     def _tr_rescale(self, img, sc):
-        logger.debug('rescaling by %.2f', sc)
         _data = rescale(img, sc, mode=self.RESCALE_MODE, anti_aliasing=True, multichannel=True)
         h, w, _ = _data.shape
         y, x, _ = img.shape
@@ -207,7 +198,6 @@ class Augmenter:
 
     def _tr_rotate(self, img, ang):
         cval = 1. if self._RGB(img) else 0
-        logger.debug('rotating CCW by %d with cval=%.2f', ang, cval)
         yield rotate(img, ang, cval=cval)
 
     def _RGB(self, img):

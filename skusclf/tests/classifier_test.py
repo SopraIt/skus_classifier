@@ -25,10 +25,10 @@ class TestClassifier(unittest.TestCase):
         data = ds.load()
         clf = classifier.SGD(data)
         X_train, X_test, y_train, y_test = clf.split(0.3)
-        self.assertEqual(X_train.shape, (37, 4096))
-        self.assertEqual(X_test.shape, (17, 4096))
-        self.assertEqual(y_train.shape, (37,))
-        self.assertEqual(y_test.shape, (17,))
+        self.assertEqual(X_train.shape, (35, 4096))
+        self.assertEqual(X_test.shape, (16, 4096))
+        self.assertEqual(y_train.shape, (35,))
+        self.assertEqual(y_test.shape, (16,))
         self.assertFalse(clf.split(1.2))
 
     def test_prediction(self):
@@ -45,7 +45,7 @@ class TestClassifier(unittest.TestCase):
         X_train, _, y_train, _ = clf.split(0.2)
         evl = classifier.Evaluator(clf.model, X_train, y_train)
         for k in evl.accuracy:
-            self.assertAlmostEqual(k, .9, delta=.4)
+            self.assertAlmostEqual(k, .9, delta=.5)
 
     def test_confusion(self):
         ds = self.create_ds(0.1)
@@ -54,7 +54,7 @@ class TestClassifier(unittest.TestCase):
         X_train, _, y_train, _ = clf.split(0.2)
         evl = classifier.Evaluator(clf.model, X_train, y_train)
         for c in evl.confusion.diagonal():
-            self.assertTrue(c > 3.5)
+            self.assertTrue(c > 3)
 
     def test_precision(self):
         ds = self.create_ds(0.1)
@@ -63,7 +63,7 @@ class TestClassifier(unittest.TestCase):
         X_train, _, y_train, _ = clf.split(0.2)
         evl = classifier.Evaluator(clf.model, X_train, y_train)
         for k in evl.precision:
-            self.assertAlmostEqual(k, .9, delta=.4)
+            self.assertAlmostEqual(k, .9, delta=.5)
 
     def test_recall(self):
         ds = self.create_ds(0.1)
@@ -72,7 +72,7 @@ class TestClassifier(unittest.TestCase):
         X_train, _, y_train, _ = clf.split(0.2)
         evl = classifier.Evaluator(clf.model, X_train, y_train)
         for k in evl.recall:
-            self.assertAlmostEqual(k, .9, delta=.4)
+            self.assertAlmostEqual(k, .9, delta=.5)
 
 
 if __name__ == '__main__':
