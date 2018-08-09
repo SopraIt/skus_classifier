@@ -24,13 +24,12 @@ class CLI:
     def classify(self):
         print(f'Calssifying {path.basename(self.opts.img)}')
         self._loglevel()
-        dataset = self._dataset()
-        mod = classifier.SGD(dataset)
-        sku = mod(self.opts.img)
+        ds = training.Dataset(name=self.opts.dataset)
+        X, y = ds.load()
+        X_o, _ = ds.load(original=True)
+        sgd = classifier.SGD(X, y, X_o[0].shape)
+        sku = sgd(self.opts.img)
         print(f'Classified as: {sku}')
-
-    def _dataset(self):
-        return training.Dataset(name=self.opts.dataset).load()
 
     def _loglevel(self):
         loglevel = getattr(logging, self.opts.loglevel.upper())

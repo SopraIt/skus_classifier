@@ -37,7 +37,7 @@ class CLI:
     
     def _name(self):
         size = self.opts.size
-        return f'{self.PREFIX}_{self.opts.brand.upper()}_{size}x{size}{self.EXT}'
+        return f'{self.PREFIX}_{self.opts.brand.upper()}_{size}{self.EXT}'
 
     def _loglevel(self):
         loglevel = getattr(logging, self.opts.loglevel.upper())
@@ -59,7 +59,7 @@ class CLI:
         parser.add_argument('-c', '--cutoff',
                             default=training.Augmenter.CUTOFF,
                             type=float,
-                            help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to no transformations')
+                            help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (no transformations)')
         parser.add_argument('-b', '--bkg',
                             default=training.Normalizer.CANVAS,
                             help='mandatory for images with different sizes, if specified, apply a squared canvas as a background, transparent if truthy, an image if a path to an existing file is specified, default to false')

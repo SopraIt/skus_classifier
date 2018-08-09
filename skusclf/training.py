@@ -281,12 +281,21 @@ class Dataset:
             logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
         return self
 
-    def load(self):
+    def load(self, original=False):
         '''
-        Loads the stored HDF5 dataset (if any) and returns it
+        Loads the stored HDF5 dataset (if any) and returns the X and y arrays.
+        If the original attribute is truthy, unflatten the data before returning them:
+        >>> ds.load(original=True)
         '''
         if path.isfile(self.name):
-            return h5py.File(self.name, 'r')
+            with h5py.File(self.name, 'r') as f:
+                X, y = f['X'], f['y']
+                shape = tuple(X.attrs['shape'].tolist())
+                X, y = X[()], y[()]
+                if original:
+                    n, _ = X.shape
+                    X = X.reshape((n,) + shape)
+                return X, y
 
     def _sample(self):
         if self.images:

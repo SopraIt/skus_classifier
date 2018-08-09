@@ -61,17 +61,14 @@ To import the created dataset within your Jupyter/ipython console, just type the
 from matplotlib import pyplot as plt
 from skusclf import training as tr
 
-ds = tr.Dataset('./dataset_MM_256x256.h5')
-data = ds.load()
-
 # you need to split manaully the dataset in test, validation and training
-X = data['X']
-y = data['y']
+ds = tr.Dataset('./dataset_MM_256x256.h5')
+X, y = ds.load()
 
-# in case you need to display an image with its original shape, it is stored within the 'X' dataset
-shape = data['X'].attrs['shape'].tolist()
-img = data['X'][0].reshape(shape)
-plt.imshow(img)
+# images data are flattened within the dataset. In case you need to display an 
+# image with its original shape, use the original flag:
+X, y = ds.load(original=True)
+plt.imshow(X[0])
 ```
 
 ### CLI
@@ -100,8 +97,8 @@ optional arguments:
                         unlimited
   -c CUTOFF, --cutoff CUTOFF
                         a float value indicating the cutoff percentage of the
-                        transformations to be applied, default to no
-                        transformations
+                        transformations to be applied, default to 0 (no
+                        transformations)
   -b BKG, --bkg BKG     mandatory for images with different sizes, if
                         specified, apply a squared canvas as a background,
                         transparent if truthy, an image if a path to an

@@ -77,13 +77,20 @@ class TestTraining(unittest.TestCase):
                               normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.01))
         ds()
-        dataset = ds.load()
-        shape = dataset['X'].attrs['shape']
-        self.assertEqual(dataset['X'].shape, (21, 4096))
-        self.assertEqual(shape.tolist(), [32, 32, 4])
-        self.assertEqual(dataset['y'].shape, (21,))
+        X, y = ds.load()
+        self.assertEqual(X.shape, (21, 4096))
+        self.assertEqual(y.shape, (21,))
         self.assertEqual(ds.labels_count, 3)
-        dataset.close()
+
+    def test_original_dataset(self):
+        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
+                              brand='gg', 
+                              normalizer=training.Normalizer(canvas=True),
+                              augmenter=training.Augmenter(.01))
+        ds()
+        X, y = ds.load(original=True)
+        self.assertEqual(X.shape, (21, 32, 32, 4))
+        self.assertEqual(y.shape, (21,))
 
     def test_empty_dataset_error(self):
         with self.assertRaises(training.Dataset.EmptyFolderError):

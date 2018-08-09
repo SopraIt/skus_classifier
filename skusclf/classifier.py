@@ -16,8 +16,7 @@ class SGD:
     Arguments
     ---------
     - dataset: a dict like object having the 'X' and 'y' keys
-    - shape: the shape used to normalize the image to classify, try to fetch it
-      from dataset meta-attributes if not specified
+    - shape: the shape used to normalize the image to classify
     - rand: the random seed used by classifier
     - normalizer: the collaborator used to normalize the image to classify
 
@@ -29,12 +28,12 @@ class SGD:
     RAND = 42
     TEST_SIZE= 0.2
 
-    def __init__(self, dataset, shape=None, rand=RAND, normalizer=Normalizer):
+    def __init__(self, X, y, shape, rand=RAND, normalizer=Normalizer):
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
         self.encoder = LabelEncoder()
-        self.X = dataset['X']
-        self.y = self._labels(dataset)
-        self.shape = shape or self.X.attrs['shape'].tolist()
+        self.X = X
+        self.y = self._int_labels(y)
+        self.shape = shape
         self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
 
     def __call__(self, name, X=None, y=None):
@@ -71,10 +70,10 @@ class SGD:
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
 
-    def _labels(self, dataset):
+    def _int_labels(self, y):
         logger.info('transforming labels')
-        self.encoder.fit(dataset['y'])
-        return self.encoder.transform(dataset['y'])
+        self.encoder.fit(y)
+        return self.encoder.transform(y)
 
 
 class Evaluator:
