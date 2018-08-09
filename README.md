@@ -36,8 +36,7 @@ The number of images is augmented by an order of magnitude by applying different
 - rescaling and cropping
 - adding random noise
 - rotating
-- adjusting contrast
-- adjusting gamma colors
+- adjusting gamma
 - blurring
 - flipping (horizontally and vertically)
 

@@ -118,8 +118,7 @@ class Augmenter:
     - rescaling and cropping
     - adding random noise
     - rotating
-    - adjusting contrast
-    - adjusting gamma colors
+    - adjusting gamma
     - blurring
     - flipping (horizontally and vertically), when the image is squared
 
