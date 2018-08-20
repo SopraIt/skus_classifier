@@ -12,6 +12,8 @@
   * [CLI](#cli)
     * [Dataset creation](#dataset-creation)
     * [Prediction](#prediction)
+  * [HTTP](#http)
+
 
 
 ## Scope
@@ -135,3 +137,16 @@ optional arguments:
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```
+
+### HTTP
+The prediction can be performed via a HTTP interface (courtesy of the Tornado application server). 
+The server will start at the specified port (default to 8888) and will immediately try to load the specified dataset:
+
+```shell
+$ python http_classifier.py --port=9292 --dataset=my_dataset.h5
+Loading and fitting my_dataset.h5...
+Dataset fitted!
+Accepting connections on 9292
+```
+
+Use the plain form to upload the SKU image and check the prediction against the dataset by clicking on the `predict` button.

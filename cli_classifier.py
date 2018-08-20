@@ -26,8 +26,8 @@ class CLI:
         self._loglevel()
         ds = training.Dataset(name=self.opts.dataset)
         X, y = ds.load()
-        X_o, _ = ds.load(original=True)
-        sgd = classifier.SGD(X, y, X_o[0].shape)
+        X_orig, _ = ds.load(original=True)
+        sgd = classifier.SGD(X, y, X_orig[0].shape)
         sku = sgd(self.opts.img)
         print(f'Classified as: {sku}')
 

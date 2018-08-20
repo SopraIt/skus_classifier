@@ -44,23 +44,22 @@ class Normalizer:
 
     def __call__(self, name):
         '''
-        Normalize the source image (path) by resizing and (optionally) pasting it 
-        within a squared canvas:
+        Normalize the source image (path or Image object) by resizing and 
+        (optionally) pasting it within a squared canvas:
         >>> norm('./images/elvis.png')
         '''
-        logger.info('normalizing image %s', path.basename(name))
         img = self._resize(name)
         if not img: return
         return self._canvas(img)
 
     def adjust(self, name, shape=None):
         '''
-        Normalizes the provided image path and returns a properly reshaped 
-        binary array, cropping and converting color if the provided shape differs:
+        Normalizes the provided image (path or Image object) and returns a properly 
+        reshaped binary array, cropping and converting color if the provided shape 
+        differs:
         >>> norm.adjust('./images/elvis.png', shape=(64, 41, 4))
         array[...]
         '''
-        logger.info('transforming %s to binary data', path.basename(name))
         img = self(name)
         if not shape:
             return np.array(img)
@@ -74,7 +73,7 @@ class Normalizer:
         return np.array(img)
 
     def _resize(self, name):
-        img = Image.open(name)
+        img = name if hasattr(name, 'size') else Image.open(name)
         w, h = img.size
         _max = max(w, h)
         if self._skip(_max): return
@@ -223,6 +222,7 @@ class Dataset:
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
       if falsey no augmentation is performed
+    - shuffle: a falg indicating id data is shuffled or not
 
     Constructor
     -----------
@@ -245,14 +245,15 @@ class Dataset:
         '''
 
     def __init__(self, name, folder=FOLDER, limit=LIMIT, brand=BRANDS[0], 
-                 augmenter=Augmenter(), normalizer=Normalizer()):
+                 augmenter=Augmenter(), normalizer=Normalizer(), shuffle=True):
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = name
         self.fetcher = self.FETCHERS[brand]
-        self.normalizer = normalizer
         self.augmenter = augmenter
+        self.normalizer = normalizer
+        self.shuffle = shuffle
         self.sample = self._sample()
         self.labels_count = 0
 
@@ -322,6 +323,8 @@ class Dataset:
         return self._shuffle(X, y)
 
     def _shuffle(self, X, y):
+        if not self.shuffle:
+            return X, y
         indexes = np.random.permutation(len(X))
         return X[indexes], y[indexes]
 

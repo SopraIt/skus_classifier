@@ -22,7 +22,7 @@ class SGD:
 
     Constructor
     -----------
-    >>> clf = Classifier({'X': array[...], 'y': array[...]}, size=64, rand=666)
+    >>> sgd = SGD({'X': array[...], 'y': array[...]}, shape=(64, 64, 4))
     '''
 
     RAND = 42
@@ -35,34 +35,22 @@ class SGD:
         self.y = self._int_labels(y)
         self.shape = shape
         self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
+        self.model.fit(self.X, self.y)
 
-    def __call__(self, name, X=None, y=None):
+    def __call__(self, name):
         '''
-        Classify the specified image (path or binary data) versus the specified
+        Classify the specified image (path or Image object) versus the specified
         training set and labels:
-        >>> clf('./images/elvis.png')
+        >>> sgd('./images/elvis.png')
         '''
-        X = self.X if X is None else X
-        y = self.y if y is None else y
         img = self._img(name)
         logger.info('fitting on dataset')
-        self.model.fit(X, y)
         logger.info('making prediction via %s', self.model.__class__.__name__)
         res = self.model.predict([img])
         label = self.encoder.inverse_transform(res)[0].decode('utf-8')
         logger.info('image classified as %s', label)
         return label
 
-    def split(self, test_size=TEST_SIZE):
-        '''
-        Split the dataset in training and test portions basing on the float representing test size
-        >>> clf.split(0.5)
-        '''
-        if float(test_size) > 1.: return
-        count = self.y.shape[0]
-        idx = int(count * (1. - test_size))
-        return self.X[:idx], self.X[idx:], self.y[:idx], self.y[idx:]
-    
     def _canvas(self):
         h, w, _ = self.shape
         return h == w
@@ -93,10 +81,19 @@ class Evaluator:
     Constructor
     -----------
     >>> evl = Evaluator(model=SGDClassifier(...), X=array[...], y=array[...], kfolds=3)
+
+    Factory
+    -------
+    >>> sgd = SGD({'X': array[...], 'y': array[...]}, shape=(64, 64, 4))
+    >>> evl = Evaluator.factory(sgd)
     '''
 
     KFOLDS = 3
     SCORING = 'accuracy'
+
+    @classmethod
+    def factory(cls, sgd, kfolds=KFOLDS):
+        return cls(sgd.model, sgd.X, sgd.y, kfolds)
     
     def __init__(self, model, X, y, kfolds=KFOLDS):
         self.model = model

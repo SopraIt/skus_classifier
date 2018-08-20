@@ -1,12 +1,21 @@
 import unittest
 from matplotlib.pyplot import imread
+from PIL import Image
 from skusclf import stubs, training
 
 
 class TestTraining(unittest.TestCase):
-    def test_normalization_plain(self):
+    def test_normalization_path(self):
         norm = training.Normalizer(size=64)
         img = norm(stubs.IMG)
+        w, h = img.size
+        self.assertEqual(w, 64)
+        self.assertEqual(h, 42)
+        self.assertEqual(img.mode, 'RGB')
+
+    def test_normalization_object(self):
+        norm = training.Normalizer(size=64)
+        img = norm(Image.open(stubs.IMG))
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 42)
