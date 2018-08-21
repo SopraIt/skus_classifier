@@ -62,7 +62,7 @@ class CLI:
                             help=f'a float value indicating the cutoff percentage of the transformations to be applied, default to {training.Augmenter.CUTOFF} (no transformations)')
         parser.add_argument('-b', '--bkg',
                             default=training.Normalizer.CANVAS,
-                            help='mandatory for images with different sizes, if specified, apply a squared canvas as a background, transparent if truthy, an image if a path to an existing file is specified, default to false')
+                            help='if specified, apply a squared canvas behind each image, can be True (white for RGB, transparent for RGBA), a specific RGB string (i.e. FF00FF) or a path to an existing file to be used as background, default to false')
         parser.add_argument('--brand',
                             default=training.Dataset.BRANDS[0],
                             choices=training.Dataset.BRANDS,

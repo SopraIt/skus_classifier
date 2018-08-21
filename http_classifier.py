@@ -12,15 +12,14 @@ from skusclf.classifier import SGD
 filterwarnings('ignore')
 define('port', default=8888, help='run on the given port', type=int)
 define('dataset', default='dataset_MM_64.h5', help='load and fit the specified dataset', type=str)
-
-
 options.parse_command_line()
-print(f'Loading and fitting {options.dataset}...')
+
+
+print(f'Loading and fitting {options.dataset}')
 ds = Dataset(options.dataset)
 X, y = ds.load()
 X_orig, _ = ds.load(original=True)
 CLF = SGD(X, y, X_orig[0].shape)
-print('Dataset fitted!')
 
 
 class App(Application):
@@ -34,15 +33,17 @@ class App(Application):
 
 class IndexHandler(RequestHandler):
     def get(self):
-        self.render('upload_form.html')
+        sku = self.get_query_argument('sku', default='')
+        filename = self.get_query_argument('filename', default='')
+        self.render('upload_form.html', sku=sku, filename=filename)
 
 
 class UploadHandler(RequestHandler):
     def post(self):
-        file_body = self.request.files['sku_file'][0]['body']
-        img = Image.open(BytesIO(file_body))
+        f = self.request.files['sku_file'][0]
+        img = Image.open(BytesIO(f['body']))
         sku = CLF(img)
-        self.write(f'Classified as: {sku}')
+        self.redirect(f'/?sku={sku}&filename={f.filename}')
 
 
 if __name__ == '__main__':

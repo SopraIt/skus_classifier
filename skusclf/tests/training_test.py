@@ -13,7 +13,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 42)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalization_object(self):
+    def test_normalization_no_canvas(self):
         norm = training.Normalizer(size=64)
         img = norm(Image.open(stubs.IMG))
         w, h = img.size
@@ -29,7 +29,15 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 64)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalization_bkg(self):
+    def test_normalization_colored_canvas(self):
+        norm = training.Normalizer(size=64, canvas='FF0000')
+        img = norm(stubs.IMG)
+        w, h = img.size
+        self.assertEqual(w, 64)
+        self.assertEqual(h, 64)
+        self.assertEqual(img.mode, 'RGB')
+
+    def test_normalization_bkg_canvas(self):
         norm = training.Normalizer(size=64, canvas=f'{stubs.PATH}/office.png')
         img = norm(stubs.IMG)
         w, h = img.size

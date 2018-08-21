@@ -32,10 +32,10 @@ class SGD:
         self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
         self.encoder = LabelEncoder()
         self.X = X
-        self.y = self._int_labels(y)
+        self.y = self._labels(y)
+        self._fit()
         self.shape = shape
         self.normalizer = normalizer(size=max(self.shape), canvas=self._canvas())
-        self.model.fit(self.X, self.y)
 
     def __call__(self, name):
         '''
@@ -58,10 +58,14 @@ class SGD:
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
 
-    def _int_labels(self, y):
+    def _labels(self, y):
         logger.info('transforming labels')
         self.encoder.fit(y)
         return self.encoder.transform(y)
+    
+    def _fit(self):
+        logger.info('fitting dataset')
+        self.model.fit(self.X, self.y)
 
 
 class Evaluator:

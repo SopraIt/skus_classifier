@@ -100,10 +100,11 @@ optional arguments:
                         a float value indicating the cutoff percentage of the
                         transformations to be applied, default to 0 (no
                         transformations)
-  -b BKG, --bkg BKG     mandatory for images with different sizes, if
-                        specified, apply a squared canvas as a background,
-                        transparent if truthy, an image if a path to an
-                        existing file is specified, default to false
+  -b BKG, --bkg BKG     if specified, apply a squared canvas behind each
+                        image, can be True (white for RGB, transparent for
+                        RGBA), a specific RGB string (i.e. FF00FF) or a path
+                        to an existing file to be used as background, default
+                        to false
   --brand {mm,gg}       specify how to fetch labels from filenames, default to
                         MaxMara
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
@@ -144,8 +145,7 @@ The server will start at the specified port (default to 8888) and will immediate
 
 ```shell
 $ python http_classifier.py --port=9292 --dataset=my_dataset.h5
-Loading and fitting my_dataset.h5...
-Dataset fitted!
+Loading and fitting my_dataset.h5
 Accepting connections on 9292
 ```
 

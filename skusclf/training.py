@@ -1,6 +1,7 @@
 from glob import glob
 from math import floor
 from os import path
+from struct import unpack
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
@@ -23,8 +24,10 @@ class Normalizer:
     Arguments
     ---------
     - size: the size of the target image
-    - canvas: a flag indicating if a squared transparent canvas must be applied 
-      behind the image, can be a path to a background image to be used
+    - canvas: an object indicating if a squared canvas must be applied 
+      behind the image, can be falsey (no canvas is applied), True (default to white),
+      a RGB string (transparent canvas will be used for PNG with alpha)
+      or a path to a background image
 
     Constructor
     -----------
@@ -101,7 +104,11 @@ class Normalizer:
         return c
     
     def _color(self, img):
-        return self.TRANSPARENT if img.mode == self.RGBA else self.WHITE
+        if img.mode == self.RGBA:
+            return self.TRANSPARENT
+        if self.canvas is True:
+            return self.WHITE
+        return unpack('BBB', bytes.fromhex(self.canvas))
 
     def _offset(self, img):
         w, h = img.size
