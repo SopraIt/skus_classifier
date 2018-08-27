@@ -1,4 +1,6 @@
+from glob import glob
 from io import BytesIO
+from os import path
 from warnings import filterwarnings
 from PIL import Image
 from tornado.httpserver import HTTPServer
@@ -9,12 +11,19 @@ from skusclf.training import Dataset
 from skusclf.classifier import SGD
 
 
+def dataset():
+    files = glob('./*.h5')
+    files.sort(key=lambda f: path.getmtime(f), reverse=True)
+    if files:
+        return files[0]
+
+
 filterwarnings('ignore')
 define('port', default=8888, help='run on the given port', type=int)
-define('dataset', default='dataset_MM_64.h5', help='load and fit the specified dataset', type=str)
+define('dataset', default=dataset(), help='load and fit the specified dataset', type=str)
 options.parse_command_line()
 
-
+if not options.dataset: raise ValueError('No dataset available')
 print(f'Loading and fitting {options.dataset}')
 ds = Dataset(options.dataset)
 X, y = ds.load()
