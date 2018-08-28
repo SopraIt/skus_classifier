@@ -11,31 +11,32 @@ from skusclf.training import Dataset
 from skusclf.classifier import SGD
 
 
-def dataset():
-    files = glob('./*.h5')
-    files.sort(key=lambda f: path.getmtime(f), reverse=True)
-    if files:
-        return files[0]
+class Config:
+    def __init__(self):
+        filterwarnings('ignore')
+        define('port', default=8888, help='run on the given port', type=int)
+        define('dataset', default=self._dataset(), help='load and fit the specified dataset', type=str)
+        options.parse_command_line()
 
+    def __call__(self):
+        print(f'Loading and fitting {options.dataset}')
+        ds = Dataset(options.dataset)
+        X, y = ds.load()
+        X_orig, _ = ds.load(original=True)
+        return SGD(X, y, X_orig[0].shape)
 
-filterwarnings('ignore')
-define('port', default=8888, help='run on the given port', type=int)
-define('dataset', default=dataset(), help='load and fit the specified dataset', type=str)
-options.parse_command_line()
-
-if not options.dataset: raise ValueError('No dataset available')
-print(f'Loading and fitting {options.dataset}')
-ds = Dataset(options.dataset)
-X, y = ds.load()
-X_orig, _ = ds.load(original=True)
-CLF = SGD(X, y, X_orig[0].shape)
+    def _dataset(self):
+        files = glob('./*.h5')
+        files.sort(key=lambda f: path.getmtime(f), reverse=True)
+        if files:
+            return files[0]
 
 
 class App(Application):
     def __init__(self):
         handlers = [
-            (r"/", IndexHandler),
-            (r"/upload", UploadHandler)
+            (r'/', IndexHandler),
+            (r'/upload', UploadHandler)
         ]
         Application.__init__(self, handlers)
 
@@ -56,6 +57,8 @@ class UploadHandler(RequestHandler):
 
 
 if __name__ == '__main__':
+    cfg = Config()
+    CLF = cfg()
     print(f'Accepting connections on {options.port}')
     http_server = HTTPServer(App())
     http_server.listen(options.port)

@@ -114,6 +114,11 @@ class TestTraining(unittest.TestCase):
             ds = training.Dataset(f'./{stubs.EMPTY}/dataset.h5', folder=stubs.EMPTY)
             ds()
 
+    def test_noent_dataset(self):
+        with self.assertRaises(training.Dataset.NoentError):
+            ds = training.Dataset(f'./{stubs.EMPTY}/dataset.h5')
+            ds.load()
+
 
 if __name__ == '__main__':
     unittest.main()

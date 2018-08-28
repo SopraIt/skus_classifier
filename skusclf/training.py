@@ -246,17 +246,22 @@ class Dataset:
         BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
     }
 
+    class NoentError(ValueError):
+        '''
+        Indicates that the specified dataset does not exist
+        '''
+
     class EmptyFolderError(ValueError):
         '''
-        Indicates if the specified folder contains no images to created the dataset with
+        Indicates if the specified folder contains no images
         '''
 
     def __init__(self, name, folder=FOLDER, limit=LIMIT, brand=BRANDS[0], 
                  augmenter=Augmenter(), normalizer=Normalizer(), shuffle=True):
-        self.folder = folder
+        self.folder = path.abspath(folder)
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
-        self.name = name
+        self.name = path.abspath(name)
         self.fetcher = self.FETCHERS[brand]
         self.augmenter = augmenter
         self.normalizer = normalizer
@@ -294,15 +299,15 @@ class Dataset:
         If the original attribute is truthy, unflatten the data before returning them:
         >>> ds.load(original=True)
         '''
-        if path.isfile(self.name):
-            with h5py.File(self.name, 'r') as f:
-                X, y = f['X'], f['y']
-                shape = tuple(X.attrs['shape'].tolist())
-                X, y = X[()], y[()]
-                if original:
-                    n, _ = X.shape
-                    X = X.reshape((n,) + shape)
-                return X, y
+        if not path.isfile(self.name): raise self.NoentError(f'{self.name} dataset does not exist')
+        with h5py.File(self.name, 'r') as f:
+            X, y = f['X'], f['y']
+            shape = tuple(X.attrs['shape'].tolist())
+            X, y = X[()], y[()]
+            if original:
+                n, _ = X.shape
+                X = X.reshape((n,) + shape)
+            return X, y
 
     def _sample(self):
         if self.images:
