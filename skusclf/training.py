@@ -73,7 +73,9 @@ class Normalizer:
         if img.size != (w, h):
             logger.info('correcting size to (%d, %d)', w, h)
             img = img.resize((w, h))
-        return np.array(img)
+        data = np.array(img)
+        logger.info('adjusted shape %r', data.shape)
+        return data
 
     def _resize(self, name):
         img = name if hasattr(name, 'size') else Image.open(name)
