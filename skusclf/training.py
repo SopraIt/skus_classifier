@@ -5,6 +5,7 @@ from struct import unpack
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
+from skimage import img_as_ubyte
 from skimage.exposure import adjust_gamma
 from skimage.transform import rescale, rotate
 from skimage.util import random_noise
@@ -75,7 +76,7 @@ class Normalizer:
             img = img.resize((w, h))
         data = np.array(img)
         logger.info('adjusted shape %r', data.shape)
-        return data
+        return img_as_ubyte(data)
 
     def _resize(self, name):
         img = name if hasattr(name, 'size') else Image.open(name)
@@ -231,7 +232,7 @@ class Dataset:
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
       if falsey no augmentation is performed
-    - shuffle: a falg indicating id data is shuffled or not
+    - shuffle: a flag indicating id data is shuffled or not
 
     Constructor
     -----------
@@ -243,6 +244,7 @@ class Dataset:
     LIMIT = 0
     COMPRESSION = ('gzip', 9)
     BRANDS = ('mm', 'gg')
+    DTYPE = np.uint8
     FETCHERS = {
         BRANDS[0]: lambda n: path.basename(n).split('-')[0],
         BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
@@ -286,7 +288,7 @@ class Dataset:
             X, y = self._collect()
             logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
             X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
-                                     dtype=np.float32, 
+                                     dtype=self.DTYPE, 
                                      compression=self.COMPRESSION[0], 
                                      compression_opts=self.COMPRESSION[1])
             X_ds.attrs['shape'] = self.sample.shape
@@ -314,9 +316,8 @@ class Dataset:
     def _sample(self):
         if self.images:
             name = self.images[0]
-            if self.normalizer:
-                return np.array(self.normalizer(name))
-            return plt.imread(name)
+            data = np.array(self.normalizer(name)) if self.normalizer else plt.imread(name)
+            return img_as_ubyte(data)
 
     def _check(self):
         if not len(self.images):
@@ -324,7 +325,7 @@ class Dataset:
     
     def _collect(self):
         logger.info('collecting data from %s', self.folder)
-        X = np.empty((self.count,) + self.sample.flatten().shape, dtype=np.float32)
+        X = np.empty((self.count,) + self.sample.flatten().shape, dtype=self.DTYPE)
         y = np.empty((self.count,), dtype=self.label_dtype)
         i = 0
         for name, img in self._images_data():
@@ -351,9 +352,10 @@ class Dataset:
     def _images_data(self):
         for name in self.images:
             if self.normalizer:
-                yield name, np.array(self.normalizer(name))
+                data = np.array(self.normalizer(name))
             else:
-                yield name, plt.imread(name)
+                data = plt.imread(name)
+            yield name, img_as_ubyte(data)
 
     def _augmenting(self, img):
         if not self.augmenter:

@@ -9,6 +9,7 @@ class TestClassifier(unittest.TestCase):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER, brand='gg', 
                               normalizer=training.Normalizer(canvas=True), 
                               augmenter=training.Augmenter(0.01), shuffle=False)
+        ds()
         X, y = ds.load()
         self.clf = classifier.SGD(X, y, (32, 32, 4))
 
@@ -19,7 +20,8 @@ class TestClassifier(unittest.TestCase):
     def test_prediction(self):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER, brand='gg', 
                               normalizer=training.Normalizer(canvas=True), 
-                              augmenter=training.Augmenter(0.5))
+                              augmenter=training.Augmenter(0.3))
+        ds()
         X, y = ds.load()
         clf = classifier.SGD(X, y, (32, 32, 4))
         res = clf(f'{stubs.PATH}/bag.png')

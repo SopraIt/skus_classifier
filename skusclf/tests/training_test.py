@@ -13,7 +13,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 42)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalization_no_canvas(self):
+    def test_normalization(self):
         norm = training.Normalizer(size=64)
         img = norm(Image.open(stubs.IMG))
         w, h = img.size
@@ -29,7 +29,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 64)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalization_colored_canvas(self):
+    def test_normalization_bkg_color(self):
         norm = training.Normalizer(size=64, canvas='FF0000')
         img = norm(stubs.IMG)
         w, h = img.size
@@ -37,7 +37,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(h, 64)
         self.assertEqual(img.mode, 'RGB')
 
-    def test_normalization_bkg_canvas(self):
+    def test_normalization_bkg_img(self):
         norm = training.Normalizer(size=64, canvas=f'{stubs.PATH}/office.png')
         img = norm(stubs.IMG)
         w, h = img.size
@@ -48,11 +48,13 @@ class TestTraining(unittest.TestCase):
     def test_adjust_array(self):
         norm = training.Normalizer(size=32)
         img = norm.adjust(stubs.IMG)
+        self.assertEqual(img.dtype, 'uint8')
         self.assertEqual(img.shape, (21, 32, 3))
 
     def test_adjust_shaped_array(self):
         norm = training.Normalizer(size=64)
         img = norm.adjust(stubs.IMG, (41, 64, 4))
+        self.assertEqual(img.dtype, 'uint8')
         self.assertEqual(img.shape, (41, 64, 4))
 
     def test_normalization_skip(self):
@@ -89,23 +91,25 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(ds.label_dtype, 'S40')
 
     def test_dataset(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              brand='gg', 
+        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER, brand='gg', 
                               normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.01))
         ds()
         X, y = ds.load()
+        self.assertEqual(X.dtype, 'uint8')
+        self.assertEqual(y.dtype, 'S17')
         self.assertEqual(X.shape, (21, 4096))
         self.assertEqual(y.shape, (21,))
         self.assertEqual(ds.labels_count, 3)
 
     def test_original_dataset(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              brand='gg', 
+        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER, brand='gg', 
                               normalizer=training.Normalizer(canvas=True),
                               augmenter=training.Augmenter(.01))
         ds()
         X, y = ds.load(original=True)
+        self.assertEqual(X.dtype, 'uint8')
+        self.assertEqual(y.dtype, 'S17')
         self.assertEqual(X.shape, (21, 32, 32, 4))
         self.assertEqual(y.shape, (21,))
 
