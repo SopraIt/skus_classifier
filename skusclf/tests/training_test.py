@@ -48,13 +48,13 @@ class TestTraining(unittest.TestCase):
     def test_adjust_array(self):
         norm = training.Normalizer(size=32)
         img = norm.adjust(stubs.IMG)
-        self.assertEqual(img.dtype, 'uint8')
+        self.assertEqual(img.dtype, 'float64')
         self.assertEqual(img.shape, (21, 32, 3))
 
     def test_adjust_shaped_array(self):
         norm = training.Normalizer(size=64)
         img = norm.adjust(stubs.IMG, (41, 64, 4))
-        self.assertEqual(img.dtype, 'uint8')
+        self.assertEqual(img.dtype, 'float64')
         self.assertEqual(img.shape, (41, 64, 4))
 
     def test_normalization_skip(self):
@@ -64,14 +64,14 @@ class TestTraining(unittest.TestCase):
 
     def test_augmenting_attributes(self):
         aug = training.Augmenter(cutoff=1.)
-        self.assertEqual(len(aug.transformers), 6)
-        self.assertEqual(aug.count, 185)
+        self.assertEqual(len(aug.transformers), 7)
+        self.assertEqual(aug.count, 188)
     
     def test_augmenting(self):
         img = imread(stubs.IMG)
         aug = training.Augmenter(.05)
         images = list(aug(img))
-        self.assertEqual(len(images), 8)
+        self.assertEqual(len(images), 9)
         for a in images:
             self.assertEqual(img.shape, a.shape)
 
@@ -86,7 +86,7 @@ class TestTraining(unittest.TestCase):
         ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
                               augmenter=training.Augmenter(.5))
         self.assertEqual(len(ds.images), 3)
-        self.assertEqual(ds.count, 273)
+        self.assertEqual(ds.count, 276)
         self.assertEqual(ds.sample.shape, (16, 32, 4))
         self.assertEqual(ds.label_dtype, 'S40')
 
@@ -96,10 +96,10 @@ class TestTraining(unittest.TestCase):
                               augmenter=training.Augmenter(.01))
         ds()
         X, y = ds.load()
-        self.assertEqual(X.dtype, 'uint8')
+        self.assertEqual(X.dtype, 'float64')
         self.assertEqual(y.dtype, 'S17')
-        self.assertEqual(X.shape, (21, 4096))
-        self.assertEqual(y.shape, (21,))
+        self.assertEqual(X.shape, (24, 4096))
+        self.assertEqual(y.shape, (24,))
         self.assertEqual(ds.labels_count, 3)
 
     def test_original_dataset(self):
@@ -108,10 +108,10 @@ class TestTraining(unittest.TestCase):
                               augmenter=training.Augmenter(.01))
         ds()
         X, y = ds.load(original=True)
-        self.assertEqual(X.dtype, 'uint8')
+        self.assertEqual(X.dtype, 'float64')
         self.assertEqual(y.dtype, 'S17')
-        self.assertEqual(X.shape, (21, 32, 32, 4))
-        self.assertEqual(y.shape, (21,))
+        self.assertEqual(X.shape, (24, 32, 32, 4))
+        self.assertEqual(y.shape, (24,))
 
     def test_empty_dataset_error(self):
         with self.assertRaises(training.Dataset.EmptyFolderError):

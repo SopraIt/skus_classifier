@@ -5,8 +5,10 @@ from struct import unpack
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
-from skimage import img_as_ubyte
+from skimage import img_as_float
+from skimage.color import grey2rgb
 from skimage.exposure import adjust_gamma
+from skimage.feature import hog
 from skimage.transform import rescale, rotate
 from skimage.util import random_noise
 import h5py
@@ -66,7 +68,7 @@ class Normalizer:
         '''
         img = self(name)
         if not shape:
-            return np.array(img)
+            return img_as_float(np.array(img))
         h, w, c = shape
         if c > 3:
             logger.info('converting to %s', self.RGBA)
@@ -76,7 +78,7 @@ class Normalizer:
             img = img.resize((w, h))
         data = np.array(img)
         logger.info('adjusted shape %r', data.shape)
-        return img_as_ubyte(data)
+        return img_as_float(data)
 
     def _resize(self, name):
         img = name if hasattr(name, 'size') else Image.open(name)
@@ -149,13 +151,14 @@ class Augmenter:
     CUTOFF = 0
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
-    BLUR = range(1, 21, 1)
+    BLUR = range(1, 21)
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
     GAMMA = np.arange(.1, 4., .1)
     NOISE = np.arange(.005, .2, .005)
     SCALE = np.arange(1.05, 3., .05)
     ROTATE = range(-45, 45, 2)
-    RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
+    HOG = range(2, 5)
+    RANGES = (BLUR, FLIP, GAMMA, HOG, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
         self.cutoff = float(cutoff)
@@ -193,6 +196,10 @@ class Augmenter:
     def _tr_gamma(self, img, gm):
         yield adjust_gamma(img, gamma=gm, gain=.9)
 
+    def _tr_hog(self, img, cell):
+        _, _data = hog(img, orientations=8, pixels_per_cell=(cell, cell), cells_per_block=(1, 1), visualize=True, multichannel=True)
+        yield grey2rgb(_data, alpha=self._RGBA(img))
+
     def _tr_noise(self, img, var):
         yield random_noise(img, mode=self.NOISE_MODE, var=var)
 
@@ -210,6 +217,9 @@ class Augmenter:
 
     def _RGB(self, img):
         return img.shape[-1] == 3
+
+    def _RGBA(self, img):
+        return img.shape[-1] == 4
 
 
 class Dataset:
@@ -244,7 +254,7 @@ class Dataset:
     LIMIT = 0
     COMPRESSION = ('gzip', 9)
     BRANDS = ('mm', 'gg')
-    DTYPE = np.uint8
+    DTYPE = np.float64
     FETCHERS = {
         BRANDS[0]: lambda n: path.basename(n).split('-')[0],
         BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
@@ -317,7 +327,7 @@ class Dataset:
         if self.images:
             name = self.images[0]
             data = np.array(self.normalizer(name)) if self.normalizer else plt.imread(name)
-            return img_as_ubyte(data)
+            return img_as_float(data)
 
     def _check(self):
         if not len(self.images):
@@ -332,6 +342,7 @@ class Dataset:
             sku = self.fetcher(name)
             logger.info('working on image %s', path.basename(name))
             for n, aug in enumerate(self._augmenting(img)):
+                aug = img_as_float(aug)
                 X[i, ...] = aug.flatten()
                 y[i, ...] = sku
                 i += 1
@@ -355,7 +366,7 @@ class Dataset:
                 data = np.array(self.normalizer(name))
             else:
                 data = plt.imread(name)
-            yield name, img_as_ubyte(data)
+            yield name, data
 
     def _augmenting(self, img):
         if not self.augmenter:
