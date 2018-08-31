@@ -81,33 +81,21 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(len(images), 1)
 
     def test_dataset_attributes(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              augmenter=training.Augmenter(.5))
+        ds = stubs.DATASET
         self.assertEqual(len(ds.images), 3)
-        self.assertEqual(ds.count, 273)
-        self.assertEqual(ds.sample.shape, (16, 32, 4))
-        self.assertEqual(ds.label_dtype, 'S40')
+        self.assertEqual(ds.count, 108)
+        self.assertEqual(ds.sample.shape, (32, 32, 4))
+        self.assertEqual(ds.label_dtype, 'S17')
 
     def test_dataset(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              brand='gg', 
-                              normalizer=training.Normalizer(canvas=True),
-                              augmenter=training.Augmenter(.01))
-        ds()
-        X, y = ds.load()
-        self.assertEqual(X.shape, (21, 4096))
-        self.assertEqual(y.shape, (21,))
-        self.assertEqual(ds.labels_count, 3)
+        X, y = stubs.DATASET.load()
+        self.assertEqual(X.shape, (108, 4096))
+        self.assertEqual(y.shape, (108,))
 
     def test_original_dataset(self):
-        ds = training.Dataset(stubs.DATASET, folder=stubs.FOLDER,
-                              brand='gg', 
-                              normalizer=training.Normalizer(canvas=True),
-                              augmenter=training.Augmenter(.01))
-        ds()
-        X, y = ds.load(original=True)
-        self.assertEqual(X.shape, (21, 32, 32, 4))
-        self.assertEqual(y.shape, (21,))
+        X, y = stubs.DATASET.load(original=True)
+        self.assertEqual(X.shape, (108, 32, 32, 4))
+        self.assertEqual(y.shape, (108,))
 
     def test_empty_dataset_error(self):
         with self.assertRaises(training.Dataset.EmptyFolderError):
