@@ -150,10 +150,10 @@ class Augmenter:
     CUTOFF = 0
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
-    BLUR = range(1, 21, 1)
+    BLUR = range(2, 7, 1)
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
     GAMMA = np.arange(.1, 4., .1)
-    NOISE = np.arange(.005, .2, .005)
+    NOISE = np.arange(.001, .031, .001)
     SCALE = np.arange(1.05, 3., .05)
     ROTATE = range(-45, 45, 2)
     RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)

@@ -63,7 +63,7 @@ class TestTraining(unittest.TestCase):
     def test_augmenting_attributes(self):
         aug = training.Augmenter(cutoff=1.)
         self.assertEqual(len(aug.transformers), 6)
-        self.assertEqual(aug.count, 185)
+        self.assertEqual(aug.count, 161)
     
     def test_augmenting(self):
         img = imread(stubs.IMG)
@@ -83,19 +83,19 @@ class TestTraining(unittest.TestCase):
     def test_dataset_attributes(self):
         ds = stubs.DATASET
         self.assertEqual(len(ds.images), 3)
-        self.assertEqual(ds.count, 108)
+        self.assertEqual(ds.count, 96)
         self.assertEqual(ds.sample.shape, (32, 32, 4))
         self.assertEqual(ds.label_dtype, 'S17')
 
     def test_dataset(self):
         X, y = stubs.DATASET.load()
-        self.assertEqual(X.shape, (108, 4096))
-        self.assertEqual(y.shape, (108,))
+        self.assertEqual(X.shape, (96, 4096))
+        self.assertEqual(y.shape, (96,))
 
     def test_original_dataset(self):
         X, y = stubs.DATASET.load(orig=True)
-        self.assertEqual(X.shape, (108, 32, 32, 4))
-        self.assertEqual(y.shape, (108,))
+        self.assertEqual(X.shape, (96, 32, 32, 4))
+        self.assertEqual(y.shape, (96,))
 
     def test_empty_dataset_error(self):
         with self.assertRaises(training.Dataset.EmptyFolderError):
@@ -114,7 +114,7 @@ class TestTraining(unittest.TestCase):
         names = comp.zip.namelist()
         labels = {name.split('/')[0] for name in names}
         self.assertEqual(len(labels), 3)
-        self.assertEqual(len(names), 108)
+        self.assertEqual(len(names), 96)
         self.assertTrue(all(name.startswith('LBL_') for name in names))
         self.assertTrue(all(name.endswith('.png') for name in names))
 
