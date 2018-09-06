@@ -15,14 +15,15 @@ class SGD:
     
     Arguments
     ---------
-    - dataset: a dict like object having the 'X' and 'y' keys
+    - X: the numpy array containing the images data
+    - y: a numpy array containing the labels data
     - shape: the shape used to normalize the image to classify
     - rand: the random seed used by classifier
     - normalizer: the collaborator used to normalize the image to classify
 
     Constructor
     -----------
-    >>> sgd = SGD({'X': array[...], 'y': array[...]}, shape=(64, 64, 4))
+    >>> sgd = SGD(array[...], array[...], shape=(64, 64, 4))
     '''
 
     RAND = 42

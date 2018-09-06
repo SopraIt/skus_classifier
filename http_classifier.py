@@ -22,7 +22,7 @@ class Config:
         print(f'Loading and fitting {options.dataset}')
         ds = Dataset(options.dataset)
         X, y = ds.load()
-        X_orig, _ = ds.load(original=True)
+        X_orig, _ = ds.load(orig=True)
         return SGD(X, y, X_orig[0].shape)
 
     def _dataset(self):

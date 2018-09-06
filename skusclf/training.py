@@ -2,6 +2,8 @@ from glob import glob
 from math import floor
 from os import path
 from struct import unpack
+from tempfile import mkdtemp
+from zipfile import ZipFile
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import uniform_filter
@@ -239,7 +241,6 @@ class Dataset:
     >>> ds = Dataset(folder='./my_images', fetcher=plain)
     '''
 
-    FOLDER = './images'
     LIMIT = 0
     COMPRESSION = ('gzip', 9)
     BRANDS = ('mm', 'gg')
@@ -258,9 +259,9 @@ class Dataset:
         Indicates if the specified folder contains no images
         '''
 
-    def __init__(self, name, folder=FOLDER, limit=LIMIT, brand=BRANDS[0], 
+    def __init__(self, name, folder=None, limit=LIMIT, brand=BRANDS[0], 
                  augmenter=Augmenter(), normalizer=Normalizer(), shuffle=True):
-        self.folder = path.abspath(folder)
+        self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
         self.name = path.abspath(name)
@@ -295,18 +296,18 @@ class Dataset:
             logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
         return self
 
-    def load(self, original=False):
+    def load(self, orig=False):
         '''
         Loads the stored HDF5 dataset (if any) and returns the X and y arrays.
-        If the original attribute is truthy, unflatten the data before returning them:
-        >>> ds.load(original=True)
+        If the orig attribute is truthy, unflatten the data before returning them:
+        >>> ds.load(orig=True)
         '''
         if not path.isfile(self.name): raise self.NoentError(f'{self.name} dataset does not exist')
         with h5py.File(self.name, 'r') as f:
             X, y = f['X'], f['y']
             shape = tuple(X.attrs['shape'].tolist())
             X, y = X[()], y[()]
-            if original:
+            if orig:
                 n, _ = X.shape
                 X = X.reshape((n,) + shape)
             return X, y
@@ -343,7 +344,8 @@ class Dataset:
         return X[indexes], y[indexes]
 
     def _images(self, limit):
-        images = sorted(glob(f'{self.folder}/*'))
+        if not self.folder: return []
+        images = sorted(glob(f'{path.abspath(self.folder)}/*'))
         if limit:
             images = images[:limit] 
         return images
@@ -359,3 +361,69 @@ class Dataset:
         if not self.augmenter:
             return [img]
         return self.augmenter(img)
+
+
+class Compressor:
+    '''
+    Synopsis
+    --------
+    Creates a ZIP file by starting from the dataset (imagesi data and labels) and
+    stores them into a folder named after the associated label and using a custom 
+    name with a counting index.
+
+    Arguments
+    ---------
+    - X: the numpy array containing the images data
+    - y: a numpy array containing the labels data
+    - name: the name of the persisted ZIP file
+    - prefix: a prefix, if any, to be used to name the label directory name 
+    - filename: the filename of the saved images, postfixed by a counting index
+
+    Constructor
+    -----------
+    >>> comp = Compressor(array[...], array[...], 'dataset.zip')
+    '''
+
+    EXT = '.zip'
+    PREFIX = 'LBL_'
+    FILENAME = 'sample'
+    EXTS = ('jpg', 'png')
+
+    def __init__(self, X, y, name, prefix=PREFIX, filename=FILENAME):
+        self.X = X
+        self.y = y
+        self.name = f'{name}{self.EXT}'
+        self.zip = ZipFile(path.abspath(self.name), 'w')
+        self.prefix = prefix
+        self.filename = filename
+        self.dir = mkdtemp(prefix='images')
+
+    def __call__(self):
+        '''
+        Save the zip file as the specified name.
+        '''
+        try:
+            logger.info('creating ZIP dataset %s', self.name)
+            for img, arc in self._entries():
+                self.zip.write(img, arcname=arc)
+        finally:
+            self.zip.close()
+
+    def _entries(self):
+        for i, (label, data) in enumerate(zip(self.y, self.X)):
+            name = f'{self.filename}_{i}.{self._ext(data)}'
+            img = self._img(data, name)
+            arc = self._arc(label, name)
+            yield(img, arc)
+
+    def _img(self, data, name):
+        _path = path.join(self.dir, name)
+        plt.imsave(_path, data)
+        return _path
+
+    def _arc(self, label, name):
+        label = label.decode('utf-8')
+        return path.join(f'{self.prefix}{label}', name)
+
+    def _ext(self, data):
+        return self.EXTS[1] if data.shape[-1] > 3 else self.EXTS[0]

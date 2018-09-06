@@ -93,7 +93,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(y.shape, (108,))
 
     def test_original_dataset(self):
-        X, y = stubs.DATASET.load(original=True)
+        X, y = stubs.DATASET.load(orig=True)
         self.assertEqual(X.shape, (108, 32, 32, 4))
         self.assertEqual(y.shape, (108,))
 
@@ -106,6 +106,17 @@ class TestTraining(unittest.TestCase):
         with self.assertRaises(training.Dataset.NoentError):
             ds = training.Dataset(f'./{stubs.EMPTY}/dataset.h5')
             ds.load()
+
+    def test_compressor(self):
+        X, y = stubs.DATASET.load(orig=True)
+        comp = training.Compressor(X, y, f'./{stubs.PATH}/dataset')
+        comp()
+        names = comp.zip.namelist()
+        labels = {name.split('/')[0] for name in names}
+        self.assertEqual(len(labels), 3)
+        self.assertEqual(len(names), 108)
+        self.assertTrue(all(name.startswith('LBL_') for name in names))
+        self.assertTrue(all(name.endswith('.png') for name in names))
 
 
 if __name__ == '__main__':

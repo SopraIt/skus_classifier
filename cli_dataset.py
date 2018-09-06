@@ -21,23 +21,29 @@ class CLI:
         self.opts = self._parser().parse_args(self.args)
 
     def create_dataset(self):
-        name = self._name()
+        name = f'{self.name}{self.EXT}'
         print(f'Creating dataset {name}')
         self._loglevel()
         ds = training.Dataset(name, folder=self.opts.folder, brand=self.opts.brand, 
                               limit=self.opts.max, augmenter=training.Augmenter(self.opts.cutoff),
                               normalizer=training.Normalizer(self.opts.size, canvas=self.canvas)) 
         ds()
+        self._zip(ds)
         print(f'Dataset created with {ds.count} features and {ds.labels_count} labels')
     
     @property
     def canvas(self):
         return False if self.opts.bkg == 'False' else self.opts.bkg
 
-    
-    def _name(self):
-        size = self.opts.size
-        return f'{self.PREFIX}_{self.opts.brand.upper()}_{size}{self.EXT}'
+    @property
+    def name(self):
+        return f'{self.PREFIX}_{self.opts.brand.upper()}_{self.opts.size}'
+
+    def _zip(self, ds):
+        if self.opts.zip:
+            X, y = ds.load(orig=True)
+            comp = training.Compressor(X, y, self.name)
+            comp()
 
     def _loglevel(self):
         loglevel = getattr(logging, self.opts.loglevel.upper())
@@ -46,8 +52,8 @@ class CLI:
     def _parser(self):
         parser = ArgumentParser(description=self.DESC)
         parser.add_argument('-f', '--folder',
-                            default=training.Dataset.FOLDER,
-                            help=f'the folder containing the image files, default to {training.Dataset.FOLDER}')
+                            required=True,
+                            help=f'the folder containing the image files')
         parser.add_argument('-s', '--size',
                             default=training.Normalizer.SIZE,
                             type=int,
@@ -67,6 +73,9 @@ class CLI:
                             default=training.Dataset.BRANDS[0],
                             choices=training.Dataset.BRANDS,
                             help='specify how to fetch labels from filenames, default to MaxMara')
+        parser.add_argument('-z', '--zip',
+                            action='store_true',
+                            help='if specified, creates a ZIP files containing the whole dataset by using the labels to organize the images')
         parser.add_argument('-l', '--loglevel',
                             default='error',
                             choices=('debug', 'info', 'warning', 'error', 'critical'),

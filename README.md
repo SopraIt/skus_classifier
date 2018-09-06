@@ -80,8 +80,8 @@ This program creates a brand new dataset by sequentially applying the actions pr
 
 ```shell
 $ python cli_dataset.py -h
-usage: cli_dataset.py [-h] [-f FOLDER] [-s SIZE] [-m MAX] [-c CUTOFF] [-b BKG]
-                      [--brand {mm,gg}]
+usage: cli_dataset.py [-h] -f FOLDER [-s SIZE] [-m MAX] [-c CUTOFF] [-b BKG]
+                      [--brand {mm,gg}] [-z]
                       [-l {debug,info,warning,error,critical}]
 
 Create a HDF5 dataset on current path by normalizing and augmenting the images
@@ -90,8 +90,7 @@ fetched from specified source
 optional arguments:
   -h, --help            show this help message and exit
   -f FOLDER, --folder FOLDER
-                        the folder containing the image files, default to
-                        ./images
+                        the folder containing the image files
   -s SIZE, --size SIZE  the max size in pixels used to normalize the dataset,
                         default to 32
   -m MAX, --max MAX     limit the number of images read from disk, default to
@@ -107,6 +106,8 @@ optional arguments:
                         to false
   --brand {mm,gg}       specify how to fetch labels from filenames, default to
                         MaxMara
+  -z, --zip             if specified, creates a ZIP files containing the whole
+                        dataset by using the labels to organize the images
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```
