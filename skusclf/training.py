@@ -244,6 +244,7 @@ class Dataset:
     LIMIT = 0
     COMPRESSION = ('gzip', 9)
     BRANDS = ('mm', 'gg')
+    MAX_VAL = 255
     FETCHERS = {
         BRANDS[0]: lambda n: path.basename(n).split('-')[0],
         BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
@@ -353,14 +354,18 @@ class Dataset:
     def _images_data(self):
         for name in self.images:
             if self.normalizer:
-                yield name, np.array(self.normalizer(name))
+                data = np.array(self.normalizer(name))
             else:
-                yield name, plt.imread(name)
+                data = plt.imread(name)
+            yield name, self._scale(data)
 
     def _augmenting(self, img):
         if not self.augmenter:
             return [img]
         return self.augmenter(img)
+
+    def _scale(self, data):
+        return data / self.MAX_VAL if np.max(data) > 1 else data
 
 
 class Compressor:
@@ -388,7 +393,6 @@ class Compressor:
     PREFIX = 'LBL_'
     FILENAME = 'sample'
     EXTS = ('jpg', 'png')
-    MAX_VAL = 255
 
     def __init__(self, X, y, name, prefix=PREFIX, filename=FILENAME):
         self.X = X
@@ -419,11 +423,8 @@ class Compressor:
 
     def _img(self, data, name):
         _path = path.join(self.dir, name)
-        plt.imsave(_path, self._scale(data))
+        plt.imsave(_path, data)
         return _path
-
-    def _scale(self, data):
-        return data / self.MAX_VAL if np.max(data) > 1 else data
 
     def _arc(self, label, name):
         label = label.decode('utf-8')
