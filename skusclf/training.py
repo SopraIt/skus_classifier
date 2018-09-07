@@ -151,11 +151,11 @@ class Augmenter:
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
     BLUR = range(2, 7, 1)
-    FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
-    GAMMA = np.arange(.1, 4., .1)
-    NOISE = np.arange(.001, .031, .001)
-    SCALE = np.arange(1.05, 3., .05)
-    ROTATE = range(-45, 45, 2)
+    FLIP = (np.s_[:, ::-1], np.s_[::-1, :]) #2
+    GAMMA = np.arange(.1, 3., .1) #29
+    NOISE = np.arange(.0005, .0255, .0005)
+    SCALE = np.arange(1.05, 3.05, .05)
+    ROTATE = np.arange(-60, 60, 2.5)
     RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
@@ -233,7 +233,7 @@ class Dataset:
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
       if falsey no augmentation is performed
-    - shuffle: a falg indicating id data is shuffled or not
+    - shuffle: a flag indicating id data is shuffled or not
 
     Constructor
     -----------
@@ -388,6 +388,7 @@ class Compressor:
     PREFIX = 'LBL_'
     FILENAME = 'sample'
     EXTS = ('jpg', 'png')
+    MAX_VAL = 255
 
     def __init__(self, X, y, name, prefix=PREFIX, filename=FILENAME):
         self.X = X
@@ -418,8 +419,11 @@ class Compressor:
 
     def _img(self, data, name):
         _path = path.join(self.dir, name)
-        plt.imsave(_path, data)
+        plt.imsave(_path, self._scale(data))
         return _path
+
+    def _scale(self, data):
+        return data / self.MAX_VAL if np.max(data) > 1 else data
 
     def _arc(self, label, name):
         label = label.decode('utf-8')

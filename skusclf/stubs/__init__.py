@@ -10,5 +10,5 @@ IMAGES = glob(f'{FOLDER}/*')
 IMG = f'{PATH}/bag.png'
 DATASET = training.Dataset(f'{PATH}/dataset.h5', folder=FOLDER, brand='gg', 
                            normalizer=training.Normalizer(canvas=True), 
-                           augmenter=training.Augmenter(0.2), shuffle=False)
+                           augmenter=training.Augmenter(.1), shuffle=False)
 DATASET()
