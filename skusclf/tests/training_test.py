@@ -91,6 +91,8 @@ class TestTraining(unittest.TestCase):
         X, y = stubs.DATASET.load()
         self.assertEqual(X.shape, (stubs.DATASET.count, 4096))
         self.assertEqual(y.shape, (stubs.DATASET.count,))
+        self.assertTrue((X <= 1.).all())
+        self.assertTrue((X >= 0).all())
 
     def test_original_dataset(self):
         X, y = stubs.DATASET.load(orig=True)

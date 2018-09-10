@@ -14,17 +14,15 @@ class CLI:
 
     DESC = 'Create a HDF5 dataset on current path by normalizing and augmenting the images fetched from specified source'
     PREFIX = './dataset'
-    EXT = '.h5'
 
     def __init__(self, args=argv[1:]):
         self.args = args
         self.opts = self._parser().parse_args(self.args)
 
     def create_dataset(self):
-        name = f'{self.name}{self.EXT}'
-        print(f'Creating dataset {name}')
+        print(f'Creating dataset {self.name}')
         self._loglevel()
-        ds = training.Dataset(name, folder=self.opts.folder, brand=self.opts.brand, 
+        ds = training.Dataset(self.name, folder=self.opts.folder, brand=self.opts.brand, 
                               limit=self.opts.max, augmenter=training.Augmenter(self.opts.cutoff),
                               normalizer=training.Normalizer(self.opts.size, canvas=self.canvas)) 
         ds()

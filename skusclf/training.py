@@ -1,3 +1,8 @@
+'''
+This module is related to the images dataset, it contains the logic to normalize, 
+augment, create and compress the image data loaded from a source folder.
+'''
+
 from glob import glob
 from math import floor
 from os import path
@@ -125,12 +130,12 @@ class Augmenter:
     --------
     Performs dataset augmentation by performing the following transformations on 
     the original image:
+    - blurring
+    - flipping
+    - adjusting gamma
     - rescaling and cropping
     - adding random noise
     - rotating
-    - adjusting gamma
-    - blurring
-    - flipping (horizontally and vertically), when the image is squared
 
     The transofrmers methods are collected bu iterating on attributes starting with 
     the prefix '_tr': be aware of that when extending this class.
@@ -242,6 +247,7 @@ class Dataset:
     '''
 
     LIMIT = 0
+    EXT = '.h5'
     COMPRESSION = ('gzip', 9)
     BRANDS = ('mm', 'gg')
     MAX_VAL = 255
@@ -265,7 +271,7 @@ class Dataset:
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
-        self.name = path.abspath(name)
+        self.name = self._name(name)
         self.fetcher = self.FETCHERS[brand]
         self.augmenter = augmenter
         self.normalizer = normalizer
@@ -313,6 +319,10 @@ class Dataset:
                 X = X.reshape((n,) + shape)
             return X, y
 
+    def _name(self, name):
+        name = name if name.endswith(self.EXT) else f'{name}{self.EXT}'
+        return path.abspath(name)
+
     def _sample(self):
         if self.images:
             name = self.images[0]
@@ -333,7 +343,7 @@ class Dataset:
             sku = self.fetcher(name)
             logger.info('working on image %s', path.basename(name))
             for n, aug in enumerate(self._augmenting(img)):
-                X[i, ...] = aug.flatten()
+                X[i, ...] = self._scale(aug.flatten())
                 y[i, ...] = sku
                 i += 1
         return self._shuffle(X, y)
@@ -357,7 +367,7 @@ class Dataset:
                 data = np.array(self.normalizer(name))
             else:
                 data = plt.imread(name)
-            yield name, self._scale(data)
+            yield name, data
 
     def _augmenting(self, img):
         if not self.augmenter:
@@ -397,7 +407,7 @@ class Compressor:
     def __init__(self, X, y, name, prefix=PREFIX, filename=FILENAME):
         self.X = X
         self.y = y
-        self.name = f'{name}{self.EXT}'
+        self.name = self._name(name) 
         self.zip = ZipFile(path.abspath(self.name), 'w')
         self.prefix = prefix
         self.filename = filename
@@ -414,6 +424,9 @@ class Compressor:
         finally:
             self.zip.close()
 
+    def _name(self, name):
+        return name if name.endswith(self.EXT) else f'{name}{self.EXT}'
+
     def _entries(self):
         for i, (label, data) in enumerate(zip(self.y, self.X)):
             name = f'{self.filename}_{i}.{self._ext(data)}'
@@ -422,9 +435,12 @@ class Compressor:
             yield(img, arc)
 
     def _img(self, data, name):
-        _path = path.join(self.dir, name)
-        plt.imsave(_path, data)
-        return _path
+        try:
+            _path = path.join(self.dir, name)
+            plt.imsave(_path, data)
+            return _path
+        except ValueError as e:
+            logger.error(f'Ivalid image data range for {name}: {data.min()} - {data.max()} / {e}')
 
     def _arc(self, label, name):
         label = label.decode('utf-8')
