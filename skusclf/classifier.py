@@ -1,4 +1,3 @@
-from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.preprocessing import LabelEncoder
@@ -6,31 +5,32 @@ from skusclf.logger import BASE as logger
 from skusclf.training import Normalizer
 
 
-class SGD:
+class Model:
     '''
     Synopsis
     --------
-    Performs a predictions by using the Stochastic Gradient Descent (SGD) 
-    scikit-learn classifier.
-    
+    Performs a predictions by using the specified sklearn model instance and the
+    provided dataset.
+
     Arguments
     ---------
+    - model: a classifier sklearn classifier instance supporting the fit and predict
+      methods
     - X: the numpy array containing the images data
     - y: a numpy array containing the labels data
     - shape: the shape used to normalize the image to classify
-    - rand: the random seed used by classifier
     - normalizer: the collaborator used to normalize the image to classify
 
     Constructor
     -----------
-    >>> sgd = SGD(array[...], array[...], shape=(64, 64, 4))
+    >>> model = Model(SGDClassifier(), array[...], array[...], shape=(64, 64, 4))
     '''
 
     RAND = 42
     TEST_SIZE= 0.2
 
-    def __init__(self, X, y, shape, rand=RAND, normalizer=Normalizer):
-        self.model = SGDClassifier(random_state=rand, max_iter=1000, tol=1e-3)
+    def __init__(self, model, X, y, shape, normalizer=Normalizer):
+        self.model = model
         self.encoder = LabelEncoder()
         self.X = X
         self.y = self._labels(y)
@@ -45,10 +45,12 @@ class SGD:
         >>> sgd('./images/elvis.png')
         '''
         img = self._img(name)
-        logger.info('fitting on dataset')
         logger.info('making prediction via %s', self.model.__class__.__name__)
-        res = self.model.predict([img])
-        label = self.encoder.inverse_transform(res)[0].decode('utf-8')
+        result = self.model.predict([img])
+        return self._decode(result)
+
+    def _decode(self, result):
+        label = self.encoder.inverse_transform(result)[0].decode('utf-8')
         logger.info('image classified as %s', label)
         return label
 
