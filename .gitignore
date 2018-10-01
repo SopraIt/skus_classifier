@@ -4,7 +4,7 @@ __pycache__/
 *.so
 **/*.ipynb
 .ipynb_checkpoints
-.venv/
+.skusclf/
 **/.DS_Store
 *.h5
 *.zip

@@ -225,7 +225,7 @@ class Dataset:
     Creates the training dataset by file system, assuming the name of the images
     contain the target data, which is fetched by a custom routine.
     Before to be stored into Numpy arrays, the images are normalized, augmented 
-    (by using external collaborators) and shuffled.
+    and shuffled.
 
     Arguments
     ---------
@@ -238,7 +238,6 @@ class Dataset:
       if falsey no normalization is performed
     - augmenter: a collaborator used to augment data of two order of magnitude,
       if falsey no augmentation is performed
-    - shuffle: a flag indicating id data is shuffled or not
 
     Constructor
     -----------
@@ -267,7 +266,7 @@ class Dataset:
         '''
 
     def __init__(self, name, folder=None, limit=LIMIT, brand=BRANDS[0], 
-                 augmenter=Augmenter(), normalizer=Normalizer(), shuffle=True):
+                 augmenter=Augmenter(), normalizer=Normalizer()):
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
@@ -275,7 +274,6 @@ class Dataset:
         self.fetcher = self.FETCHERS[brand]
         self.augmenter = augmenter
         self.normalizer = normalizer
-        self.shuffle = shuffle
         self.sample = self._sample()
         self.labels_count = 0
 
@@ -349,8 +347,6 @@ class Dataset:
         return self._shuffle(X, y)
 
     def _shuffle(self, X, y):
-        if not self.shuffle:
-            return X, y
         indexes = np.random.permutation(len(X))
         return X[indexes], y[indexes]
 

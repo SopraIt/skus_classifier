@@ -1,6 +1,6 @@
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import cross_val_score, cross_val_predict
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from skusclf.logger import BASE as logger
 from skusclf.training import Normalizer
 
@@ -32,7 +32,8 @@ class Model:
     def __init__(self, model, X, y, shape, normalizer=Normalizer):
         self.model = model
         self.encoder = LabelEncoder()
-        self.X = X
+        self.scaler = StandardScaler()
+        self.X = self._features(X)
         self.y = self._labels(y)
         self._fit()
         self.shape = shape
@@ -60,6 +61,11 @@ class Model:
 
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
+    
+    def _features(self, X):
+        logger.info('standardizing features')
+        self.scaler.fit(X)
+        return self.scaler.transform(X)
 
     def _labels(self, y):
         logger.info('transforming labels')
@@ -91,16 +97,16 @@ class Evaluator:
 
     Factory
     -------
-    >>> sgd = SGD({'X': array[...], 'y': array[...]}, shape=(64, 64, 4))
-    >>> evl = Evaluator.factory(sgd)
+    >>> model = Model(SGDClassifier(...), X=array[...], y=array[...], shape=(64, 64, 4))
+    >>> evl = Evaluator.factory(model)
     '''
 
     KFOLDS = 3
     SCORING = 'accuracy'
 
     @classmethod
-    def factory(cls, sgd, kfolds=KFOLDS):
-        return cls(sgd.model, sgd.X, sgd.y, kfolds)
+    def factory(cls, model, kfolds=KFOLDS):
+        return cls(model.model, model.X, model.y, kfolds)
     
     def __init__(self, model, X, y, kfolds=KFOLDS):
         self.model = model
@@ -128,3 +134,13 @@ class Evaluator:
     @property
     def f1_score(self):
         return f1_score(self.y, self.y_pred, average=None)
+
+    def __str__(self):
+        data = []
+        data.append(f'kfolds:    {self.kfolds}')
+        data.append(f'accuracy:  {self.accuracy}')
+        data.append(f'precision: {self.precision}')
+        data.append(f'recall:    {self.recall}')
+        data.append(f'f1 score:  {self.f1_score}')
+        data.append(f'confusion: {self.confusion.diagonal()}')
+        return '\n'.join(data)
