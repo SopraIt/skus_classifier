@@ -1,6 +1,6 @@
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import cross_val_score, cross_val_predict
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder
 from skusclf.logger import BASE as logger
 from skusclf.training import Normalizer
 
@@ -26,14 +26,10 @@ class Model:
     >>> model = Model(SGDClassifier(), array[...], array[...], shape=(64, 64, 4))
     '''
 
-    RAND = 42
-    TEST_SIZE= 0.2
-
     def __init__(self, model, X, y, shape, normalizer=Normalizer):
         self.model = model
         self.encoder = LabelEncoder()
-        self.scaler = StandardScaler()
-        self.X = self._features(X)
+        self.X = X
         self.y = self._labels(y)
         self._fit()
         self.shape = shape
@@ -62,11 +58,6 @@ class Model:
     def _img(self, name):
         return self.normalizer.adjust(name, self.shape).flatten()
     
-    def _features(self, X):
-        logger.info('standardizing features')
-        self.scaler.fit(X)
-        return self.scaler.transform(X)
-
     def _labels(self, y):
         logger.info('transforming labels')
         self.encoder.fit(y)
@@ -135,12 +126,9 @@ class Evaluator:
     def f1_score(self):
         return f1_score(self.y, self.y_pred, average=None)
 
-    def __str__(self):
-        data = []
-        data.append(f'kfolds:    {self.kfolds}')
-        data.append(f'accuracy:  {self.accuracy}')
-        data.append(f'precision: {self.precision}')
-        data.append(f'recall:    {self.recall}')
-        data.append(f'f1 score:  {self.f1_score}')
-        data.append(f'confusion: {self.confusion.diagonal()}')
-        return '\n'.join(data)
+    def __iter__(self):
+        yield(f'accuracy:  {max(self.accuracy):.3}')
+        yield(f'precision: {max(self.precision):.3}')
+        yield(f'recall:    {max(self.recall):.3}')
+        yield(f'f1 score:  {max(self.f1_score):.3}')
+        yield(f'confusion: {self.confusion.trace()}')

@@ -142,10 +142,10 @@ optional arguments:
 
 ### HTTP
 The prediction can be performed via a HTTP interface (courtesy of the Tornado application server). 
-The server will start at the specified port (default to 8888) and will immediately try to load the specified dataset (default to last h5 file on cwd):
+The server will start at the specified port (default to 8888) and will immediately try to load the specified dataset (default to last h5 file on cwd) by classifying versus specified model (default di SGD):
 
 ```shell
-$ python http_classifier.py --port=9292 --dataset=my_dataset.h5
+$ python http_classifier.py --port=9292 --dataset=my_dataset.h5 --model=rf
 Loading and fitting my_dataset.h5
 Accepting connections on 9292
 ```

@@ -5,16 +5,17 @@
         <title>Upload SKU image</title>
     </head>
     <body>
+        <h3>Model: {{ kind }}</h3>
         <form enctype="multipart/form-data" action="/upload" method="post">
-            SKU: <input type="file" name="sku_file" />
+            SKU: <input type="file" name="sku_file" id="sku_file" />
             <br/>
             <br/>
-            <input type="submit" value="predict" />
+            <input type="submit" onclick="if (document.getElementById('sku_file').value == '') return false;" value="predict" />
         </form>
-        <p>
+        <p style="font-weight: bold; color: #C33;">
         {{ filename }}
         </p>
-        <p>
+        <p style="font-weight: bold; color: #3C3;">
         {{ sku }}
         </p>
     </body>
