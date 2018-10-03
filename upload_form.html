@@ -3,6 +3,21 @@
     <head> 
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
         <title>Upload SKU image</title>
+        <style>
+        .btn {
+            width: 75px;
+        }
+
+        .input {
+            font-weight: bold;
+            color: #C33; 
+        }
+
+        .output {
+            font-weight: bold;
+            color: #33C; 
+        }
+        </style>
     </head>
     <body>
         <h3>Model: {{ kind }}</h3>
@@ -10,13 +25,19 @@
             SKU: <input type="file" name="sku_file" id="sku_file" />
             <br/>
             <br/>
-            <input type="submit" onclick="if (document.getElementById('sku_file').value == '') return false;" value="predict" />
+            <input type="submit" onclick="if (document.getElementById('sku_file').value == '') return false;" value="predict" class="btn"/>
+            <input type="button" onclick="location.href='/model';" value="model" class="btn"/>
         </form>
-        <p style="font-weight: bold; color: #C33;">
+        <p class="input">
         {{ filename }}
         </p>
-        <p style="font-weight: bold; color: #3C3;">
+        <p class="output">
         {{ sku }}
         </p>
+        <ul>
+            {% for i in info %}
+            <li>{{ escape(i) }}</li>
+            {% end %}
+        </ul>
     </body>
 </html>

@@ -11,7 +11,7 @@ class TestTraining(unittest.TestCase):
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 42)
-        self.assertEqual(img.mode, 'RGB')
+        self.assertEqual(img.mode, 'RGBA')
 
     def test_normalization_no_canvas(self):
         norm = training.Normalizer(size=64)
@@ -19,7 +19,7 @@ class TestTraining(unittest.TestCase):
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 42)
-        self.assertEqual(img.mode, 'RGB')
+        self.assertEqual(img.mode, 'RGBA')
 
     def test_normalization_canvas(self):
         norm = training.Normalizer(size=64, canvas=True)
@@ -27,7 +27,7 @@ class TestTraining(unittest.TestCase):
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 64)
-        self.assertEqual(img.mode, 'RGB')
+        self.assertEqual(img.mode, 'RGBA')
 
     def test_normalization_colored_canvas(self):
         norm = training.Normalizer(size=64, canvas='FF0000')
@@ -35,7 +35,7 @@ class TestTraining(unittest.TestCase):
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 64)
-        self.assertEqual(img.mode, 'RGB')
+        self.assertEqual(img.mode, 'RGBA')
 
     def test_normalization_bkg_canvas(self):
         norm = training.Normalizer(size=64, canvas=f'{stubs.PATH}/office.png')
@@ -43,12 +43,12 @@ class TestTraining(unittest.TestCase):
         w, h = img.size
         self.assertEqual(w, 64)
         self.assertEqual(h, 64)
-        self.assertEqual(img.mode, 'RGB')
+        self.assertEqual(img.mode, 'RGBA')
 
     def test_adjust_array(self):
         norm = training.Normalizer(size=32)
         img = norm.adjust(stubs.IMG)
-        self.assertEqual(img.shape, (21, 32, 3))
+        self.assertEqual(img.shape, (21, 32, 4))
 
     def test_adjust_shaped_array(self):
         norm = training.Normalizer(size=64)
@@ -63,13 +63,14 @@ class TestTraining(unittest.TestCase):
     def test_augmenting_attributes(self):
         aug = training.Augmenter(cutoff=1.)
         self.assertEqual(len(aug.transformers), 6)
-        self.assertEqual(aug.count, 175)
+        self.assertEqual(aug.count, 556)
+        self.assertEqual(str(aug), 'Augmenter(cutoff=1.0, count=556)')
     
     def test_augmenting(self):
         img = imread(stubs.IMG)
         aug = training.Augmenter(.05)
         images = list(aug(img))
-        self.assertEqual(len(images), 10)
+        self.assertEqual(len(images), aug.count)
         for a in images:
             self.assertEqual(img.shape, a.shape)
 

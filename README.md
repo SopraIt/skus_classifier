@@ -81,7 +81,7 @@ This program creates a brand new dataset by sequentially applying the actions pr
 ```shell
 $ python cli_dataset.py -h
 usage: cli_dataset.py [-h] -f FOLDER [-s SIZE] [-m MAX] [-c CUTOFF] [-b BKG]
-                      [--brand {mm,gg}] [-z]
+                      [--brand {plain,mm,gg,vg}] [-z]
                       [-l {debug,info,warning,error,critical}]
 
 Create a HDF5 dataset on current path by normalizing and augmenting the images
@@ -104,8 +104,9 @@ optional arguments:
                         RGBA), a specific RGB string (i.e. FF00FF) or a path
                         to an existing file to be used as background, default
                         to false
-  --brand {mm,gg}       specify how to fetch labels from filenames, default to
-                        MaxMara
+  --brand {plain,mm,gg,vg}
+                        specify how to fetch labels from images, default to
+                        file basename
   -z, --zip             if specified, creates a ZIP files containing the whole
                         dataset by using the labels to organize the images
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
@@ -150,4 +151,5 @@ Loading and fitting my_dataset.h5
 Accepting connections on 9292
 ```
 
-Use the plain form to upload the SKU image and check the prediction against the dataset by clicking on the `predict` button.
+Use the plain form to upload the SKU image and check the prediction against the dataset by clicking on the `predict` button.  
+If you are interested on the ML model information, click on the `model` button.

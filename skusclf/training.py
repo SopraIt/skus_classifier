@@ -86,6 +86,8 @@ class Normalizer:
 
     def _resize(self, name):
         img = name if hasattr(name, 'size') else Image.open(name)
+        if self._png(img):
+            img = img.convert(self.RGBA)
         w, h = img.size
         _max = max(w, h)
         if self._skip(_max): return
@@ -123,6 +125,9 @@ class Normalizer:
         w, h = img.size
         return ((self.size - w) // 2, (self.size - h) // 2)
 
+    def _png(self, img):
+        return img.format == 'PNG'
+
 
 class Augmenter:
     '''
@@ -156,11 +161,11 @@ class Augmenter:
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
     BLUR = range(2, 7, 1)
-    FLIP = (np.s_[:, ::-1], np.s_[::-1, :]) #2
-    GAMMA = np.arange(.1, 3., .1) #29
+    FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
+    GAMMA = np.arange(.1, 3., .05)
     NOISE = np.arange(.0005, .0255, .0005)
-    SCALE = np.arange(1.05, 3.05, .05)
-    ROTATE = np.arange(-60, 60, 2.5)
+    SCALE = np.arange(1.05, 3.05, .01)
+    ROTATE = np.arange(-60, 60, 0.5)
     RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
@@ -184,6 +189,9 @@ class Augmenter:
             logger.info(f'applying {t} {len(r)} times')
             for a in r:
                 yield from _m(img, a)
+
+    def __str__(self):
+        return f'Augmenter(cutoff={self.cutoff}, count={self.count})'
 
     def _cut(self, r):
         if self.cutoff >= 1: return r
@@ -241,18 +249,19 @@ class Dataset:
 
     Constructor
     -----------
-    >>> plain = lambda name: name
-    >>> ds = Dataset(folder='./my_images', fetcher=plain)
+    >>> ds = Dataset('my_dataset', folder='./my_images')
     '''
 
     LIMIT = 0
     EXT = '.h5'
     COMPRESSION = ('gzip', 9)
-    BRANDS = ('mm', 'gg')
+    BRANDS = ('plain', 'mm', 'gg', 'vg')
     MAX_VAL = 255
     FETCHERS = {
-        BRANDS[0]: lambda n: path.basename(n).split('-')[0],
-        BRANDS[1]: lambda n: '_'.join(path.basename(n).split('_')[:3])
+        BRANDS[0]: lambda n: path.basename(n),
+        BRANDS[1]: lambda n: path.basename(n).split('-')[0],
+        BRANDS[2]: lambda n: '_'.join(path.basename(n).split('_')[:3]),
+        BRANDS[3]: lambda n: path.basename(n).split('.')[0]
     }
 
     class NoentError(ValueError):
@@ -267,10 +276,10 @@ class Dataset:
 
     def __init__(self, name, folder=None, limit=LIMIT, brand=BRANDS[0], 
                  augmenter=Augmenter(), normalizer=Normalizer()):
+        self.name = self._name(name)
         self.folder = folder
         self.images = self._images(int(limit))
         self.count = len(self.images) * (augmenter.count if augmenter else 1)
-        self.name = self._name(name)
         self.fetcher = self.FETCHERS[brand]
         self.augmenter = augmenter
         self.normalizer = normalizer

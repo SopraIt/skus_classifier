@@ -70,7 +70,7 @@ class CLI:
         parser.add_argument('--brand',
                             default=training.Dataset.BRANDS[0],
                             choices=training.Dataset.BRANDS,
-                            help='specify how to fetch labels from filenames, default to MaxMara')
+                            help='specify how to fetch labels from images, default to file basename')
         parser.add_argument('-z', '--zip',
                             action='store_true',
                             help='if specified, creates a ZIP files containing the whole dataset by using the labels to organize the images')
