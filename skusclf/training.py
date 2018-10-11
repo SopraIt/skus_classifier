@@ -255,13 +255,12 @@ class Dataset:
     LIMIT = 0
     EXT = '.h5'
     COMPRESSION = ('gzip', 9)
-    BRANDS = ('plain', 'mm', 'gg', 'vg')
+    BRANDS = ('plain', 'mm', 'gg')
     MAX_VAL = 255
     FETCHERS = {
-        BRANDS[0]: lambda n: path.basename(n),
+        BRANDS[0]: lambda n: path.basename(n).split('.')[0],
         BRANDS[1]: lambda n: path.basename(n).split('-')[0],
-        BRANDS[2]: lambda n: '_'.join(path.basename(n).split('_')[:3]),
-        BRANDS[3]: lambda n: path.basename(n).split('.')[0]
+        BRANDS[2]: lambda n: '_'.join(path.basename(n).split('_')[:3])
     }
 
     class NoentError(ValueError):
