@@ -9,6 +9,9 @@ PATH = 'skusclf/stubs'
 FOLDER = f'{PATH}/images'
 IMAGES = glob(f'{FOLDER}/*')
 IMG = f'{PATH}/bag.png'
+FEATURES = training.Features(FOLDER, brand='gg', 
+                             normalizer=training.Normalizer(canvas=True), 
+                             augmenter=training.Augmenter(.1))
 DATASET = training.Dataset(f'{PATH}/dataset.h5', folder=FOLDER, brand='gg', 
                            normalizer=training.Normalizer(canvas=True), 
                            augmenter=training.Augmenter(.3))

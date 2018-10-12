@@ -81,6 +81,14 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(aug.count, 1)
         self.assertEqual(len(images), 1)
 
+    def test_features(self):
+        features = list(stubs.FEATURES)
+        sku, imgs = features[0]
+        self.assertEqual(len(features), 3)
+        self.assertEqual(sku, '400249_CXZFD_5278')
+        for img in imgs:
+            self.assertEqual(img.shape, (32, 32, 4))
+
     def test_dataset_attributes(self):
         ds = stubs.DATASET
         self.assertEqual(len(ds.images), 3)
