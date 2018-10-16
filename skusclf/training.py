@@ -3,9 +3,10 @@ This module is related to the images dataset, it contains the logic to normalize
 augment, create and compress the image data loaded from a source folder.
 '''
 
+from functools import reduce
 from glob import glob
 from math import floor
-from itertools import islice
+from operator import mul
 from os import path
 from struct import unpack
 from tempfile import mkdtemp
@@ -187,7 +188,7 @@ class Augmenter:
         logger.info('applying a set of %d transformations', self.count)
         for r, t in zip(self.ranges, self.transformers):
             _m = getattr(self, t)
-            logger.info(f'applying {t} {len(r)} times')
+            logger.debug(f'applying {t} {len(r)} times')
             for a in r:
                 yield from _m(img, a)
 
@@ -232,7 +233,7 @@ class Features:
     Synopsis
     --------
     Represents the set of features fed by a file system folder containing the
-    images to be classified.
+    images (PNG, JPG) to be classified.
 
     Arguments
     ---------
@@ -249,7 +250,8 @@ class Features:
     -----------
     >>> feat = Features('./my_images')
     '''
-
+    
+    EXTS = ('jpg', 'jpeg', 'png')
     LIMIT = 0
     BRANDS = ('plain', 'mm', 'gg')
     MAX_VAL = 255
@@ -266,88 +268,109 @@ class Features:
 
     def __init__(self, folder, limit=LIMIT, brand=BRANDS[0], 
                  augmenter=Augmenter(), normalizer=Normalizer()):
-        self.folder = folder
+        self.folder = path.abspath(folder)
         self.images = self._images(int(limit))
         self.fetcher = self.FETCHERS[brand]
         self.augmenter = augmenter
         self.normalizer = normalizer
+        self.count = len(self.images) * (augmenter.count if augmenter else 1)
+        self.types = self._types()
+
+    def _types(self):
+        sku, data = self._data(self.images[0])
+        return f'S{len(sku)}', data.shape
 
     def __iter__(self):
         '''
-        Returns a lazy iterable representing a the computed label and a list of 
-        related numpy array as values:
+        Returns a lazy iterator representing the computed labels and the list of 
+        related images data:
         >>> for lbl, imgs in feat:
         >>>   # do something with label
         >>>   for img in imgs:
         >>>     # do something with array of image data
         '''
-        self._check()
-        for name, img in self._images_data():
-            sku = self.fetcher(name)
-            data = (self._scale(aug) for aug in self._augmenting(img))
-            yield (sku, data)
+        imgs_data = (self._data(name) for name in self.images)
+        for label, img in imgs_data:
+            imgs = (self._scale(aug) for aug in self._augmenting(img))
+            yield (label, imgs)
 
-    def _check(self):
-        if not len(self.images):
-            raise self.EmptyFolderError(f'{self.folder} contains no valid images')
-    
+    def _glob(self):
+        return [f for ext in self.EXTS 
+                  for f in glob(path.join(self.folder, f'*.{ext}'))]
+
     def _images(self, limit):
-        if not self.folder: return []
-        images = sorted(glob(f'{path.abspath(self.folder)}/*'))
+        images = sorted(self._glob())
         if limit:
             images = images[:limit] 
+        if not len(images):
+            raise self.EmptyFolderError(f'{self.folder} contains no valid images')
         return images
 
-    def _images_data(self):
-        for name in self.images:
-            if self.normalizer:
-                data = np.array(self.normalizer(name))
-            else:
-                data = plt.imread(name)
-            yield name, data
+    def _data(self, name):
+        if self.normalizer:
+            data = np.array(self.normalizer(name))
+        else:
+            data = plt.imread(name)
+        return self.fetcher(name), self._scale(data)
+
+    def _scale(self, data):
+        return data / self.MAX_VAL if np.max(data) > 1 else data
 
     def _augmenting(self, img):
         if not self.augmenter:
             return [img]
         return self.augmenter(img)
-
-    def _scale(self, data):
-        return data / self.MAX_VAL if np.max(data) > 1 else data
 
 
 class DatasetH5:
     '''
     Synopsis
     --------
-    Creates an H5 dataset by starting from a list of features
+    Creates an H5 dataset by a list of features
 
     Arguments
     ---------
     - name: the name of the persisted HDF5 file
-    - features: a lazy enumerator containing tuples of label and list of associated
-      images data
+    - features: a features collaborator object that can be iterated and 
+      queried for data information
 
     Constructor
     -----------
-    >>> ds = DatasetH5('my_dataset', features)
+    >>> ds = DatasetH5('my_dataset', <Features>)
     '''
 
     EXT = '.h5'
+    DTYPE = np.float32
     COMPRESSION = ('gzip', 9)
 
     class NoentError(ValueError):
         '''
         Indicates that the specified dataset does not exist
         '''
+
+    @classmethod
+    def load(cls, name, orig=False):
+        '''
+        Loads the stored HDF5 dataset (if any) and returns the X and y arrays.
+        If the orig attribute is truthy, reshape the data before returning them:
+        >>> DatasetH5.load(orig=True)
+        '''
+        name = path.abspath(name)
+        if not path.isfile(name):
+            raise cls.NoentError(f'{name} dataset does not exist')
+        with h5py.File(name, 'r') as f:
+            X, y = f['X'], f['y']
+            shape = tuple(X.attrs['shape'].tolist())
+            X, y = X[()], y[()]
+            if orig:
+                n, _ = X.shape
+                X = X.reshape((n,) + shape)
+            return X, y
 
     def __init__(self, name, features):
         self.name = self._name(name)
         self.features = features
-        self.sample = islice(features, 1)[0]
-
-    @property
-    def label_dtype(self):
-        return f'S{len(self.sample[0])}'
+        self.lbl_type, self.shape = features.types
 
     def __call__(self):
         '''
@@ -357,236 +380,58 @@ class DatasetH5:
         with h5py.File(self.name, 'w') as hf:
             X, y = self._collect()
             logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
-            X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
-                                     dtype=np.float32, 
-                                     compression=self.COMPRESSION[0], 
-                                     compression_opts=self.COMPRESSION[1])
-            X_ds.attrs['shape'] = self.sample.shape
+            ds = hf.create_dataset(name='X', data=X, shape=X.shape,
+                                   dtype=self.DTYPE, 
+                                   compression=self.COMPRESSION[0], 
+                                   compression_opts=self.COMPRESSION[1])
+            ds.attrs['shape'] = self.shape
             hf.create_dataset(name='y', data=y, shape=y.shape)
             self.labels_count = len(np.unique(y))
-            logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
-        return self
-
-    def load(self, orig=False):
-        '''
-        Loads the stored HDF5 dataset (if any) and returns the X and y arrays.
-        If the orig attribute is truthy, unflatten the data before returning them:
-        >>> ds.load(orig=True)
-        '''
-        if not path.isfile(self.name): raise self.NoentError(f'{self.name} dataset does not exist')
-        with h5py.File(self.name, 'r') as f:
-            X, y = f['X'], f['y']
-            shape = tuple(X.attrs['shape'].tolist())
-            X, y = X[()], y[()]
-            if orig:
-                n, _ = X.shape
-                X = X.reshape((n,) + shape)
-            return X, y
+            logger.info('dataset with %d features and %d labels created successfully', self.features.count, self.labels_count)
 
     def _name(self, name):
         name = name if name.endswith(self.EXT) else f'{name}{self.EXT}'
         return path.abspath(name)
 
-    def _sample(self):
-        if self.images:
-            name = self.images[0]
-            if self.normalizer:
-                return np.array(self.normalizer(name))
-            return plt.imread(name)
-
     def _collect(self):
-        X = np.empty((self.count,) + self.sample.flatten().shape, dtype=np.float32)
-        y = np.empty((self.count,), dtype=self.label_dtype)
         i = 0
-        for name, img in self._images_data():
-            sku = self.fetcher(name)
-            logger.info('working on image %s', path.basename(name))
-            for n, aug in enumerate(self._augmenting(img)):
-                X[i, ...] = self._scale(aug.flatten())
-                y[i, ...] = sku
+        X, y = self._placeholders()
+        for label, imgs in self.features:
+            for img in imgs:
+                X[i, ...] = img.flatten()
+                y[i, ...] = label
                 i += 1
         return self._shuffle(X, y)
 
     def _shuffle(self, X, y):
-        indexes = np.random.permutation(len(X))
+        indexes = np.random.permutation(self.features.count)
         return X[indexes], y[indexes]
 
+    def _placeholders(self):
+        shape = (self.features.count, reduce(mul, self.shape))
+        X = np.empty(shape, dtype=self.DTYPE)
+        y = np.empty((self.features.count,), dtype=self.lbl_type)
+        return X, y
 
-class Dataset:
+
+class DatasetZIP:
     '''
     Synopsis
     --------
-    Creates the training dataset by file system, assuming the name of the images
-    contain the target data, which is fetched by a custom routine.
-    Before to be stored into Numpy arrays, the images are normalized, augmented 
-    and shuffled.
+    Creates a ZIP dataset by a list of features, archiving a folder per label containing
+    all of the images.
 
     Arguments
     ---------
-    - folder: the folder containing the PNG files
-    - limit: limit the number of images read from disk, default to unlimited
-    - fetcher: a callable taking as an argument the filename and returning the
-      formatted label
-    - name: the name of the persisted HDF5 file
-    - normalizer: a collaborator used to normalize the images within the folder,
-      if falsey no normalization is performed
-    - augmenter: a collaborator used to augment data of two order of magnitude,
-      if falsey no augmentation is performed
-
-    Constructor
-    -----------
-    >>> ds = Dataset('my_dataset', folder='./my_images')
-    '''
-
-    LIMIT = 0
-    EXT = '.h5'
-    COMPRESSION = ('gzip', 9)
-    BRANDS = ('plain', 'mm', 'gg')
-    MAX_VAL = 255
-    FETCHERS = {
-        BRANDS[0]: lambda n: path.basename(n).split('.')[0],
-        BRANDS[1]: lambda n: path.basename(n).split('-')[0],
-        BRANDS[2]: lambda n: '_'.join(path.basename(n).split('_')[:3])
-    }
-
-    class NoentError(ValueError):
-        '''
-        Indicates that the specified dataset does not exist
-        '''
-
-    class EmptyFolderError(ValueError):
-        '''
-        Indicates if the specified folder contains no images
-        '''
-
-    def __init__(self, name, folder=None, limit=LIMIT, brand=BRANDS[0], 
-                 augmenter=Augmenter(), normalizer=Normalizer()):
-        self.name = self._name(name)
-        self.folder = folder
-        self.images = self._images(int(limit))
-        self.count = len(self.images) * (augmenter.count if augmenter else 1)
-        self.fetcher = self.FETCHERS[brand]
-        self.augmenter = augmenter
-        self.normalizer = normalizer
-        self.sample = self._sample()
-        self.labels_count = 0
-
-    @property
-    def label_dtype(self):
-        sku = self.fetcher(self.images[0])
-        return f'S{len(sku)}'
-
-    def __call__(self):
-        '''
-        Save the dataset in the HDF5 format and returns a tuple of collected (X,y) data.
-        '''
-        self._check()
-        logger.info('persisting dataset %s', self.name)
-        with h5py.File(self.name, 'w') as hf:
-            X, y = self._collect()
-            logger.info('creating X(%r), y(%r) datasets', X.shape, y.shape)
-            X_ds = hf.create_dataset(name='X', data=X, shape=X.shape,
-                                     dtype=np.float32, 
-                                     compression=self.COMPRESSION[0], 
-                                     compression_opts=self.COMPRESSION[1])
-            X_ds.attrs['shape'] = self.sample.shape
-            hf.create_dataset(name='y', data=y, shape=y.shape)
-            self.labels_count = len(np.unique(y))
-            logger.info('dataset with %d features and %d labels created successfully', self.count, self.labels_count)
-        return self
-
-    def load(self, orig=False):
-        '''
-        Loads the stored HDF5 dataset (if any) and returns the X and y arrays.
-        If the orig attribute is truthy, unflatten the data before returning them:
-        >>> ds.load(orig=True)
-        '''
-        if not path.isfile(self.name): raise self.NoentError(f'{self.name} dataset does not exist')
-        with h5py.File(self.name, 'r') as f:
-            X, y = f['X'], f['y']
-            shape = tuple(X.attrs['shape'].tolist())
-            X, y = X[()], y[()]
-            if orig:
-                n, _ = X.shape
-                X = X.reshape((n,) + shape)
-            return X, y
-
-    def _name(self, name):
-        name = name if name.endswith(self.EXT) else f'{name}{self.EXT}'
-        return path.abspath(name)
-
-    def _sample(self):
-        if self.images:
-            name = self.images[0]
-            if self.normalizer:
-                return np.array(self.normalizer(name))
-            return plt.imread(name)
-
-    def _check(self):
-        if not len(self.images):
-            raise self.EmptyFolderError(f'{self.folder} contains no valid images')
-    
-    def _collect(self):
-        logger.info('collecting data from %s', self.folder)
-        X = np.empty((self.count,) + self.sample.flatten().shape, dtype=np.float32)
-        y = np.empty((self.count,), dtype=self.label_dtype)
-        i = 0
-        for name, img in self._images_data():
-            sku = self.fetcher(name)
-            logger.info('working on image %s', path.basename(name))
-            for n, aug in enumerate(self._augmenting(img)):
-                X[i, ...] = self._scale(aug.flatten())
-                y[i, ...] = sku
-                i += 1
-        return self._shuffle(X, y)
-
-    def _shuffle(self, X, y):
-        indexes = np.random.permutation(len(X))
-        return X[indexes], y[indexes]
-
-    def _images(self, limit):
-        if not self.folder: return []
-        images = sorted(glob(f'{path.abspath(self.folder)}/*'))
-        if limit:
-            images = images[:limit] 
-        return images
-
-    def _images_data(self):
-        for name in self.images:
-            if self.normalizer:
-                data = np.array(self.normalizer(name))
-            else:
-                data = plt.imread(name)
-            yield name, data
-
-    def _augmenting(self, img):
-        if not self.augmenter:
-            return [img]
-        return self.augmenter(img)
-
-    def _scale(self, data):
-        return data / self.MAX_VAL if np.max(data) > 1 else data
-
-
-class Compressor:
-    '''
-    Synopsis
-    --------
-    Creates a ZIP file by starting from the dataset (imagesi data and labels) and
-    stores them into a folder named after the associated label and using a custom 
-    name with a counting index.
-
-    Arguments
-    ---------
-    - X: the numpy array containing the images data
-    - y: a numpy array containing the labels data
     - name: the name of the persisted ZIP file
+    - features: a features collaborator object that can be iterated and 
+      queried for data information
     - prefix: a prefix, if any, to be used to name the label directory name 
     - filename: the filename of the saved images, postfixed by a counting index
 
     Constructor
     -----------
-    >>> comp = Compressor(array[...], array[...], 'dataset.zip')
+    >>> comp = DatasetZIP('dataset.zip', <Features>)
     '''
 
     EXT = '.zip'
@@ -594,14 +439,14 @@ class Compressor:
     FILENAME = 'sample'
     EXTS = ('jpg', 'png')
 
-    def __init__(self, X, y, name, prefix=PREFIX, filename=FILENAME):
-        self.X = X
-        self.y = y
+    def __init__(self, name, features, prefix=PREFIX, filename=FILENAME):
         self.name = self._name(name) 
         self.zip = ZipFile(path.abspath(self.name), 'w')
+        self.features = features
         self.prefix = prefix
         self.filename = filename
         self.dir = mkdtemp(prefix='images')
+        self.ext = self._ext()
 
     def __call__(self):
         '''
@@ -618,11 +463,17 @@ class Compressor:
         return name if name.endswith(self.EXT) else f'{name}{self.EXT}'
 
     def _entries(self):
-        for i, (label, data) in enumerate(zip(self.y, self.X)):
-            name = f'{self.filename}_{i}.{self._ext(data)}'
-            img = self._img(data, name)
-            arc = self._arc(label, name)
-            yield(img, arc)
+        for label, imgs in self.features:
+            logger.info('archiving label %s', label)
+            for i, data in enumerate(imgs):
+                name = self._filename(i)
+                logger.debug('archiving image %s', name)
+                img = self._img(data, name)
+                arc = self._arc(label, name)
+                yield(img, arc)
+
+    def _filename(self, i):
+        return f'{self.filename}_{i}.{self.ext}'
 
     def _img(self, data, name):
         try:
@@ -630,11 +481,11 @@ class Compressor:
             plt.imsave(_path, data)
             return _path
         except ValueError as e:
-            logger.error(f'Ivalid image data range for {name}: {data.min()} - {data.max()} / {e}')
+            logger.error(f'invalid image data range for {name}: {data.min()} - {data.max()} / {e}')
 
     def _arc(self, label, name):
-        label = label.decode('utf-8')
         return path.join(f'{self.prefix}{label}', name)
 
-    def _ext(self, data):
-        return self.EXTS[1] if data.shape[-1] > 3 else self.EXTS[0]
+    def _ext(self):
+        _, shape = self.features.types
+        return self.EXTS[1] if shape[-1] > 3 else self.EXTS[0]

@@ -11,7 +11,7 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.options import define, options
 from tornado.web import Application, RequestHandler
-from skusclf.training import Dataset
+from skusclf.training import DatasetH5
 from skusclf.classifier import Evaluator, Model
 
 
@@ -31,9 +31,8 @@ class Config:
 
     def _model(self):
         print(f'Loading and fitting {options.dataset}')
-        ds = Dataset(options.dataset)
-        X, y = ds.load()
-        X_orig, _ = ds.load(orig=True)
+        X, y = DatasetH5.load(options.dataset)
+        X_orig, _ = DatasetH5.load(options.dataset, orig=True)
         return Model(self.models.get(options.model, 'sgd'), X, y, X_orig[0].shape)
 
     def _dataset(self):

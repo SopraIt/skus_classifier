@@ -12,36 +12,36 @@ class CLI:
     A plain CLI wrapper over the training.Dataset class.
     '''
 
-    DESC = 'Create a HDF5 dataset on current path by normalizing and augmenting the images fetched from specified source'
+    DESC = 'Create a ZIP or H5 dataset on current path by normalizing and augmenting the images fetched from specified source'
     PREFIX = './dataset'
+    KINDS = ('zip', 'h5')
 
     def __init__(self, args=argv[1:]):
         self.args = args
         self.opts = self._parser().parse_args(self.args)
 
-    def create_dataset(self):
-        print(f'Creating dataset {self.name}')
+    def __call__(self):
+        print(f'creating dataset {self.name}')
         self._loglevel()
-        ds = training.Dataset(self.name, folder=self.opts.folder, brand=self.opts.brand, 
-                              limit=self.opts.max, augmenter=training.Augmenter(self.opts.cutoff),
-                              normalizer=training.Normalizer(self.opts.size, canvas=self.canvas)) 
-        ds()
-        self._zip(ds)
-        print(f'Dataset created with {ds.count} features and {ds.labels_count} labels')
+        features = self._features()
+        self.dataset(self.name, features)()
+        print(f'dataset with {features.count} features created successfully')
     
-    @property
-    def canvas(self):
-        return False if self.opts.bkg == 'False' else self.opts.bkg
-
     @property
     def name(self):
         return f'{self.PREFIX}_{self.opts.brand.upper()}_{self.opts.size}'
 
-    def _zip(self, ds):
-        if self.opts.zip:
-            X, y = ds.load(orig=True)
-            comp = training.Compressor(X, y, self.name)
-            comp()
+    @property
+    def dataset(self):
+        if self.opts.kind == self.KINDS[0]:
+            return training.DatasetZIP
+        return training.DatasetH5
+
+    def _features(self):
+        canvas = False if self.opts.bkg == 'False' else self.opts.bkg
+        return training.Features(self.opts.folder, limit=self.opts.max, brand=self.opts.brand, 
+                                 augmenter=training.Augmenter(self.opts.cutoff),
+                                 normalizer=training.Normalizer(self.opts.size, canvas=canvas)) 
 
     def _loglevel(self):
         loglevel = getattr(logging, self.opts.loglevel.upper())
@@ -49,6 +49,10 @@ class CLI:
 
     def _parser(self):
         parser = ArgumentParser(description=self.DESC)
+        parser.add_argument('-k', '--kind',
+                            default=self.KINDS[0],
+                            choices=self.KINDS,
+                            help=f'the dataset kind, can be an uploadable ZIP or a H5 file to be used by a Python framework, deafult to {self.KINDS[0]}')
         parser.add_argument('-f', '--folder',
                             required=True,
                             help=f'the folder containing the image files')
@@ -57,7 +61,7 @@ class CLI:
                             type=int,
                             help=f'the max size in pixels used to normalize the dataset, default to {training.Normalizer.SIZE}')
         parser.add_argument('-m', '--max',
-                            default=training.Dataset.LIMIT,
+                            default=training.Features.LIMIT,
                             type=int,
                             help='limit the number of images read from disk, default to unlimited')
         parser.add_argument('-c', '--cutoff',
@@ -68,12 +72,9 @@ class CLI:
                             default=training.Normalizer.CANVAS,
                             help='if specified, apply a squared canvas behind each image, can be True (white for RGB, transparent for RGBA), a specific RGB string (i.e. FF00FF) or a path to an existing file to be used as background, default to false')
         parser.add_argument('--brand',
-                            default=training.Dataset.BRANDS[0],
-                            choices=training.Dataset.BRANDS,
+                            default=training.Features.BRANDS[0],
+                            choices=training.Features.BRANDS,
                             help='specify how to fetch labels from images, default to file basename')
-        parser.add_argument('-z', '--zip',
-                            action='store_true',
-                            help='if specified, creates a ZIP files containing the whole dataset by using the labels to organize the images')
         parser.add_argument('-l', '--loglevel',
                             default='error',
                             choices=('debug', 'info', 'warning', 'error', 'critical'),
@@ -82,4 +83,4 @@ class CLI:
 
 
 if __name__ == '__main__':
-    CLI().create_dataset()
+    CLI()()

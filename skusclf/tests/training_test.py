@@ -5,6 +5,9 @@ from skusclf import stubs, training
 
 
 class TestTraining(unittest.TestCase):
+    def setUp(self):
+        self.count = 501
+
     def test_normalization_path(self):
         norm = training.Normalizer(size=64)
         img = norm(stubs.IMG)
@@ -81,51 +84,47 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(aug.count, 1)
         self.assertEqual(len(images), 1)
 
+    def test_features_attributes(self):
+        lbl_type, img_type = stubs.FEATURES.types
+        self.assertEqual(stubs.FEATURES.count, self.count)
+        self.assertEqual(lbl_type, 'S17')
+        self.assertEqual(img_type, (32, 32, 4))
+
     def test_features(self):
         features = list(stubs.FEATURES)
         sku, imgs = features[0]
-        self.assertEqual(len(features), 3)
         self.assertEqual(sku, '400249_CXZFD_5278')
         for img in imgs:
             self.assertEqual(img.shape, (32, 32, 4))
+            self.assertTrue((img <= 1.).all())
 
-    def test_dataset_attributes(self):
-        ds = stubs.DATASET
-        self.assertEqual(len(ds.images), 3)
-        self.assertEqual(ds.count, stubs.DATASET.count)
-        self.assertEqual(ds.sample.shape, (32, 32, 4))
-        self.assertEqual(ds.label_dtype, 'S17')
+    def test_empty_features_error(self):
+        with self.assertRaises(training.Features.EmptyFolderError):
+            features = training.Features(stubs.EMPTY)
+            list(features)
 
-    def test_dataset(self):
-        X, y = stubs.DATASET.load()
-        self.assertEqual(X.shape, (stubs.DATASET.count, 4096))
-        self.assertEqual(y.shape, (stubs.DATASET.count,))
-        self.assertTrue((X <= 1.).all())
-        self.assertTrue((X >= 0).all())
+    def test_dataset_h5(self):
+        self.assertEqual(stubs.X.shape, (self.count, 4096))
+        self.assertEqual(stubs.y.shape, (self.count,))
 
-    def test_original_dataset(self):
-        X, y = stubs.DATASET.load(orig=True)
-        self.assertEqual(X.shape, (stubs.DATASET.count, 32, 32, 4))
-        self.assertEqual(y.shape, (stubs.DATASET.count,))
+    def test_dataset_h5_orig(self):
+        self.assertEqual(stubs.X_orig.shape, (self.count, 32, 32, 4))
+        self.assertEqual(stubs.y_orig.shape, (self.count,))
 
-    def test_empty_dataset_error(self):
-        with self.assertRaises(training.Dataset.EmptyFolderError):
-            ds = training.Dataset(f'./{stubs.EMPTY}/dataset.h5', folder=stubs.EMPTY)
-            ds()
+    def test_dataset_h5_noent(self):
+        with self.assertRaises(training.DatasetH5.NoentError):
+            training.DatasetH5.load(f'./{stubs.EMPTY}/dataset.h5')
 
-    def test_noent_dataset(self):
-        with self.assertRaises(training.Dataset.NoentError):
-            ds = training.Dataset(f'./{stubs.EMPTY}/dataset.h5')
-            ds.load()
-
-    def test_compressor(self):
-        X, y = stubs.DATASET.load(orig=True)
-        comp = training.Compressor(X, y, f'./{stubs.PATH}/dataset')
-        comp()
-        names = comp.zip.namelist()
+    def test_dataset_zip(self):
+        ds = training.DatasetZIP(f'./{stubs.PATH}/dataset', stubs.FEATURES)
+        ds()
+        names = ds.zip.namelist()
         labels = {name.split('/')[0] for name in names}
+        idx = (self.count // 3) - 1
         self.assertEqual(len(labels), 3)
-        self.assertEqual(len(names), stubs.DATASET.count)
+        self.assertEqual(len(names), self.count)
+        self.assertEqual(names[0], 'LBL_400249_CXZFD_5278/sample_0.png')
+        self.assertEqual(names[idx], 'LBL_400249_CXZFD_5278/sample_166.png')
         self.assertTrue(all(name.startswith('LBL_') for name in names))
         self.assertTrue(all(name.endswith('.png') for name in names))
 

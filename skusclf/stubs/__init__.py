@@ -11,11 +11,10 @@ IMAGES = glob(f'{FOLDER}/*')
 IMG = f'{PATH}/bag.png'
 FEATURES = training.Features(FOLDER, brand='gg', 
                              normalizer=training.Normalizer(canvas=True), 
-                             augmenter=training.Augmenter(.1))
-DATASET = training.Dataset(f'{PATH}/dataset.h5', folder=FOLDER, brand='gg', 
-                           normalizer=training.Normalizer(canvas=True), 
-                           augmenter=training.Augmenter(.3))
-DATASET()
-X, y = DATASET.load()
+                             augmenter=training.Augmenter(.3))
+DATASET_H5 = training.DatasetH5(f'{PATH}/dataset', FEATURES)
+DATASET_H5()
+X, y = training.DatasetH5.load(f'{PATH}/dataset.h5')
+X_orig, y_orig = training.DatasetH5.load(f'{PATH}/dataset.h5', orig=True)
 MODEL = classifier.Model(SGDClassifier(random_state=42, max_iter=1000, tol=1e-3), X, y, (32, 32, 4))
 EVL = classifier.Evaluator.factory(MODEL)
