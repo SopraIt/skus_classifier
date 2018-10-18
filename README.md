@@ -100,7 +100,7 @@ optional arguments:
                         to an existing file to be used as background, default
                         to false
   --brand {plain,mm,gg}
-                        specify how to fetch labels from images, default to
+                        specify how to fetch labels from images, default to plain
                         file basename
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error

@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from datetime import datetime
 from sys import argv
 import logging
 from skusclf import training
@@ -21,11 +22,12 @@ class CLI:
         self.opts = self._parser().parse_args(self.args)
 
     def __call__(self):
-        print(f'creating dataset {self.name}')
         self._loglevel()
         features = self._features()
-        self.dataset(self.name, features)()
-        print(f'dataset with {features.count} features created successfully')
+        ds = self.dataset(self.name, features)
+        print(f'creating dataset {ds.name}')
+        ds()
+        return ds
     
     @property
     def name(self):
@@ -74,7 +76,7 @@ class CLI:
         parser.add_argument('--brand',
                             default=training.Features.BRANDS[0],
                             choices=training.Features.BRANDS,
-                            help='specify how to fetch labels from images, default to file basename')
+                            help='specify how to fetch labels from images, default to plain file basename')
         parser.add_argument('-l', '--loglevel',
                             default='error',
                             choices=('debug', 'info', 'warning', 'error', 'critical'),
@@ -83,4 +85,8 @@ class CLI:
 
 
 if __name__ == '__main__':
-    CLI()()
+    start = datetime.now()
+    ds = CLI()()
+    finish = datetime.now()
+    lapse = (finish - start).total_seconds()
+    print(f'dataset with {ds.features.count} features created in {lapse} seconds')

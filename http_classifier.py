@@ -85,7 +85,7 @@ if __name__ == '__main__':
     CONFIG = Config()
     finish = datetime.now()
     lapse = (finish - start).total_seconds()
-    print(f'{CONFIG.kind} training completed in {lapse:.4} seconds')
+    print(f'{CONFIG.kind} training completed in {lapse} seconds')
     print(f'Accepting connections on {options.port}')
     http_server = HTTPServer(App())
     http_server.listen(options.port)
