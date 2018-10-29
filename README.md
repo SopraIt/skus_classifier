@@ -91,17 +91,16 @@ optional arguments:
   -m MAX, --max MAX     limit the number of images read from disk, default to
                         unlimited
   -c CUTOFF, --cutoff CUTOFF
-                        a float value indicating the cutoff percentage of the
-                        transformations to be applied, default to 0 (no
-                        transformations)
+                        a float value indicating how many transformations to
+                        apply, default to 1.0 (all transformations)
   -b BKG, --bkg BKG     if specified, apply a squared canvas behind each
                         image, can be True (white for RGB, transparent for
                         RGBA), a specific RGB string (i.e. FF00FF) or a path
                         to an existing file to be used as background, default
                         to false
   --brand {plain,mm,gg}
-                        specify how to fetch labels from images, default to plain
-                        file basename
+                        specify how to fetch labels from images, default to
+                        plain file basename
   -l {debug,info,warning,error,critical}, --loglevel {debug,info,warning,error,critical}
                         the loglevel, default to error
 ```

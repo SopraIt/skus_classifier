@@ -92,14 +92,10 @@ class Normalizer:
             img = img.convert(self.RGBA)
         w, h = img.size
         _max = max(w, h)
-        if self._skip(_max): return
         ratio = _max / self.size
         size = (int(w // ratio), int(h // ratio))
         logger.info('resizing image to %r', size)
         return img.resize(size)
-
-    def _skip(self, max_size):
-        return not self.bkg and max_size == self.size
 
     def _canvas(self, img):
         if not self.canvas: return img
@@ -159,7 +155,7 @@ class Augmenter:
     >>> aug = Augmenter(0.75)
     '''
 
-    CUTOFF = 0
+    CUTOFF = 1.
     RESCALE_MODE = 'constant'
     NOISE_MODE = 'speckle'
     BLUR = range(2, 7, 1)
@@ -314,7 +310,11 @@ class Features:
         return self.fetcher(name), self._scale(data)
 
     def _scale(self, data):
-        return data / self.MAX_VAL if np.max(data) > 1 else data
+        if np.max(data) > 1:
+            data = data / self.MAX_VAL
+        if np.min(data) < 0:
+            data[data < 0] = 0
+        return data
 
     def _augmenting(self, img):
         if not self.augmenter:
@@ -468,20 +468,21 @@ class DatasetZIP:
             for i, data in enumerate(imgs):
                 name = self._filename(i)
                 logger.debug('archiving image %s', name)
-                img = self._img(data, name)
+                img = self._img(data, name, label)
                 arc = self._arc(label, name)
-                yield(img, arc)
+                if img:
+                    yield(img, arc)
 
     def _filename(self, i):
         return f'{self.filename}_{i}.{self.ext}'
 
-    def _img(self, data, name):
+    def _img(self, data, name, label):
         try:
             _path = path.join(self.dir, name)
             plt.imsave(_path, data)
             return _path
         except ValueError as e:
-            logger.error(f'invalid image data range for {name}: {data.min()} - {data.max()} / {e}')
+            logger.error(f'invalid image data range for {label}: {data.min()} - {data.max()} / {e}')
 
     def _arc(self, label, name):
         return path.join(f'{self.prefix}{label}', name)

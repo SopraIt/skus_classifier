@@ -58,11 +58,6 @@ class TestTraining(unittest.TestCase):
         img = norm.adjust(stubs.IMG, (41, 64, 4))
         self.assertEqual(img.shape, (41, 64, 4))
 
-    def test_normalization_skip(self):
-        norm = training.Normalizer(size=300)
-        img = norm(stubs.IMG)
-        self.assertIsNone(img)
-
     def test_augmenting_attributes(self):
         aug = training.Augmenter(cutoff=1.)
         self.assertEqual(len(aug.transformers), 6)
