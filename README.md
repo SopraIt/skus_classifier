@@ -125,4 +125,3 @@ Accepting connections on 9292
 ```
 
 Use the plain form to upload the SKU image and check the prediction against the dataset by clicking on the `predict` button.  
-If you are interested on the ML model information, click on the `model` button.

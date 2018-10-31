@@ -26,7 +26,6 @@
             <br/>
             <br/>
             <input type="submit" onclick="if (document.getElementById('sku_file').value == '') return false;" value="predict" class="btn"/>
-            <input type="button" onclick="location.href='/model';" value="model" class="btn"/>
         </form>
         <p class="input">
         {{ filename }}
@@ -34,10 +33,5 @@
         <p class="output">
         {{ sku }}
         </p>
-        <ul>
-            {% for i in info %}
-            <li>{{ escape(i) }}</li>
-            {% end %}
-        </ul>
     </body>
 </html>

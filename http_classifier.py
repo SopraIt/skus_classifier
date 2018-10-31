@@ -12,7 +12,7 @@ from tornado.ioloop import IOLoop
 from tornado.options import define, options
 from tornado.web import Application, RequestHandler
 from skusclf.training import DatasetH5
-from skusclf.classifier import Evaluator, Model
+from skusclf.classifier import Model
 
 
 class Config:
@@ -53,7 +53,6 @@ class App(Application):
     def __init__(self):
         handlers = [
             (r'/', IndexHandler),
-            (r'/model', ModelHandler),
             (r'/upload', UploadHandler)
         ]
         Application.__init__(self, handlers)
@@ -64,12 +63,6 @@ class IndexHandler(RequestHandler):
         sku = self.get_query_argument('sku', default='')
         filename = self.get_query_argument('filename', default='')
         self.render('upload_form.html', info=[], sku=sku, filename=filename, kind=CONFIG.kind)
-
-
-class ModelHandler(RequestHandler):
-    def get(self):
-        evl = Evaluator.factory(CONFIG.model)
-        self.render('upload_form.html', info=list(evl), sku='', filename='', kind=CONFIG.kind)
 
 
 class UploadHandler(RequestHandler):
