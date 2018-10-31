@@ -161,9 +161,9 @@ class Augmenter:
     BLUR = range(2, 7, 1)
     FLIP = (np.s_[:, ::-1], np.s_[::-1, :])
     GAMMA = np.arange(.1, 3., .05)
-    NOISE = np.arange(.0005, .0255, .0005)
+    NOISE = np.arange(.0005, .0260, .0005)
     SCALE = np.arange(1.05, 3.05, .01)
-    ROTATE = np.arange(-75, 75, .5)
+    ROTATE = np.arange(-157, 157, .9)
     RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
