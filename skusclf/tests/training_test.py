@@ -6,7 +6,7 @@ from skusclf import stubs, training
 
 class TestTraining(unittest.TestCase):
     def setUp(self):
-        self.count = 501
+        self.count = 555
 
     def test_normalization_path(self):
         norm = training.Normalizer(size=64)
@@ -59,10 +59,10 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(img.shape, (41, 64, 4))
 
     def test_augmenting_attributes(self):
-        aug = training.Augmenter(cutoff=1.)
+        aug = training.Augmenter()
         self.assertEqual(len(aug.transformers), 6)
-        self.assertEqual(aug.count, 556)
-        self.assertEqual(str(aug), 'Augmenter(cutoff=1.0, count=556)')
+        self.assertEqual(aug.count, 616)
+        self.assertEqual(str(aug), 'Augmenter(cutoff=1.0, count=616)')
     
     def test_augmenting(self):
         img = imread(stubs.IMG)
@@ -119,7 +119,7 @@ class TestTraining(unittest.TestCase):
         self.assertEqual(len(labels), 3)
         self.assertEqual(len(names), self.count)
         self.assertEqual(names[0], 'LBL_400249_CXZFD_5278/sample_0.png')
-        self.assertEqual(names[idx], 'LBL_400249_CXZFD_5278/sample_166.png')
+        self.assertEqual(names[idx], 'LBL_400249_CXZFD_5278/sample_184.png')
         self.assertTrue(all(name.startswith('LBL_') for name in names))
         self.assertTrue(all(name.endswith('.png') for name in names))
 

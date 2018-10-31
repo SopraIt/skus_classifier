@@ -163,7 +163,7 @@ class Augmenter:
     GAMMA = np.arange(.1, 3., .05)
     NOISE = np.arange(.0005, .0255, .0005)
     SCALE = np.arange(1.05, 3.05, .01)
-    ROTATE = np.arange(-60, 60, 0.5)
+    ROTATE = np.arange(-75, 75, .5)
     RANGES = (BLUR, FLIP, GAMMA, NOISE, SCALE, ROTATE)
 
     def __init__(self, cutoff=CUTOFF):
@@ -274,8 +274,9 @@ class Features:
         self.types = self._types()
 
     def _types(self):
-        sku, data = self._data(self.images[0])
-        return f'S{len(sku)}', data.shape
+        img = max(self.images, key=lambda img: len(img))
+        lbl, data = self._data(img)
+        return f'S{len(lbl)}', data.shape
 
     def __iter__(self):
         '''
