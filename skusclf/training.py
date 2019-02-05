@@ -249,7 +249,7 @@ class Features:
     
     MAX = 1.
     MIN = 0.
-    EXTS = ('jpg', 'jpeg', 'png')
+    EXTS = ('jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG')
     LIMIT = 0
     BRANDS = ('plain', 'mm', 'gg')
     FETCHERS = {
