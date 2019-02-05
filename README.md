@@ -2,6 +2,10 @@
 
 * [Scope](#scope)
   * [Problem](#problem)
+* [Setup](#setup)
+  * [Versions](#versions)
+  * [Virtualenv](#virtualenv)
+  * [Installation](#installation)
 * [Dataset](#dataset)
   * [Normalizer](#normalizer)
   * [Augmenter](#augmenter)
@@ -19,6 +23,33 @@ This is a machine learning (ML) project aimed to classify SKUs basing on the cat
 
 ### Problem
 The whole system is a supervised classifier: the catalog images, associated by related SKU code, compose the training set.
+
+## Setup
+
+### Versions
+The library is compatible and it has been tested with the following python versions:
+* 3.4.8
+* 3.6.4
+* 3.7.1
+
+### Virtualenv
+We suggest to isolate your installation via python virtualenv:
+```shell
+python3 -m venv .skusclf
+...
+source .skuclf/bin/activate
+```
+
+### Installation
+Update `pip` package manager:
+```shell
+pip install pip --upgrade
+```
+
+Install the external dependencies by requirements file:
+```shell
+pip install -r requirements.txt
+```
 
 ## Dataset
 The system is aimed to work with images of different sizes, saved as PNG or JPG files (supporting RGBA conversion).
